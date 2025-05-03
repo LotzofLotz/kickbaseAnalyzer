@@ -1,21 +1,21 @@
 'use client';
 
-import { Suspense, useState, useEffect } from 'react';
+import { Suspense, useState, useEffect, useMemo } from 'react'; // Import useMemo
 import { useRouter, useSearchParams } from 'next/navigation';
-import { formatCurrency } from '@/lib/kickbase-api'; // Assuming formatCurrency is exported there
+import { formatCurrency } from '@/lib/kickbase-api';
 import { getPositionName, getStatusName, getTeamData } from '@/utils/player.utils';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+// Entferne Recharts-Importe, da wir sie hierfür nicht mehr nutzen
+// import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const CDN_BASE_URL = 'https://kickbase.b-cdn.net/';
 
-// Value history interface
+// Interfaces bleiben gleich...
 interface ValueHistory {
     player_id: string;
     date: string;
     value: number;
 }
 
-// Player stats interface
 interface PlayerStats {
     season: string;
     matchday: number;
@@ -33,7 +33,6 @@ interface PlayerStats {
     forecast: number | null;
 }
 
-// Club matches interface
 interface ClubMatch {
     season: string;
     matchday: number;
@@ -50,16 +49,93 @@ interface ClubMatch {
     draw_probabilities: number;
 }
 
-// Helper to decode or return default
+// Kombinierte Datenstruktur für die Visualisierung
+interface MatchdayVizData {
+    matchday: number;
+    points: number | null;
+    marketValue: number | null;
+    marketValueFormatted: string | null;
+}
+
 const getQueryParam = (params: URLSearchParams | null, key: string, defaultValue: string = '-') => {
     return params?.get(key) ? decodeURIComponent(params.get(key)!) : defaultValue;
 };
+
+// Hilfsfunktion zur Berechnung der Balkenhöhe (oder Punktposition)
+// Skaliert den Wert auf einen Bereich von 0-100 (Prozent der maximalen Höhe)
+// Behandelt null, 0 und negative Werte
+const calculateVizHeight = (value: number | null, maxValue: number, minValue: number = 0): number => {
+    if (value === null || value === undefined) return 0;
+
+    // Fall für nur positive Werte (z.B. Marktwert)
+    if (minValue >= 0) {
+        if (maxValue <= 0) return 0; // Keine positiven Werte vorhanden
+        return Math.max(0, Math.min(100, (value / maxValue) * 100));
+    }
+
+    // Fall für Werte, die positiv oder negativ sein können (z.B. Punkte)
+    const range = maxValue - minValue;
+    if (range <= 0) {
+        // Wenn alle Werte gleich sind (oder nur ein Wert existiert)
+        if (value > 0) return 50; // Zeige etwas Positives
+        if (value < 0) return 50; // Zeige etwas Negatives (ggf. andere Darstellung nötig)
+        return 0; // Wenn Wert 0 ist
+    }
+    // Skalieren auf 0-100, wobei 0 dem minValue entspricht
+    const scaledValue = ((value - minValue) / range) * 100;
+    return Math.max(0, Math.min(100, scaledValue));
+};
+
+// Hilfsfunktion, um den Marktwert für einen Spieltag zu finden
+const findMarketValueForMatchday = (matchday: number, clubMatches: ClubMatch[], valueHistory: ValueHistory[]): number | null => {
+    const matchingMatch = clubMatches.find(match => match.matchday === matchday);
+    if (!matchingMatch || !matchingMatch.match_date) return null;
+
+    const matchDate = new Date(matchingMatch.match_date);
+    let closestValueEntry: ValueHistory | null = null;
+    let minDaysDiff = Infinity;
+
+    valueHistory.forEach(entry => {
+        const entryDate = new Date(entry.date);
+        // Differenz in Tagen berechnen
+        const timeDiff = entryDate.getTime() - matchDate.getTime();
+        const daysDiff = timeDiff / (1000 * 60 * 60 * 24); // Kann negativ sein (vor dem Spieltag)
+
+        // Wir suchen den Wert am Spieltag oder den letzten davor (max 7 Tage zurück)
+        if (entryDate <= matchDate) {
+            const absDaysDiff = Math.abs(daysDiff);
+            if (absDaysDiff < minDaysDiff) {
+                minDaysDiff = absDaysDiff;
+                closestValueEntry = entry;
+            }
+        }
+        // Wenn es keinen Wert <= matchDate gibt, nimm den nächsten danach (max 3 Tage)
+        // um Fälle abzudecken, wo der MW erst nach dem Spieltag aktualisiert wird
+        else if (closestValueEntry === null && daysDiff <= 3 && daysDiff < minDaysDiff) {
+             minDaysDiff = daysDiff;
+             closestValueEntry = entry;
+        }
+    });
+
+    // Fallback: Wenn kein Wert gefunden wurde (oder zu weit weg), nimm den allerletzten bekannten Wert, wenn er nicht zu alt ist
+     if (!closestValueEntry && valueHistory.length > 0) {
+        const lastEntry = valueHistory[valueHistory.length - 1];
+        const lastEntryDate = new Date(lastEntry.date);
+        const diffToNow = Math.abs(matchDate.getTime() - lastEntryDate.getTime()) / (1000 * 60 * 60 * 24);
+         if (diffToNow < 30) { // Nur wenn der letzte Wert nicht älter als ~1 Monat ist
+            //return lastEntry.value; // Optionale Fallback-Logik
+         }
+     }
+
+    return closestValueEntry ? closestValueEntry.value : null;
+};
+
 
 function PlayerInfoContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
 
-    // Extract player data from URL parameters
+    // Player data extraction remains the same...
     const playerId = getQueryParam(searchParams, 'id');
     const firstName = getQueryParam(searchParams, 'firstName');
     const lastName = getQueryParam(searchParams, 'lastName', 'Spieler');
@@ -70,26 +146,26 @@ function PlayerInfoContent() {
     const marketValue = parseInt(getQueryParam(searchParams, 'marketValue', '0'));
     const points = getQueryParam(searchParams, 'points');
     const avgPoints = getQueryParam(searchParams, 'avgPoints');
-    const playerImage = getQueryParam(searchParams, 'playerImage'); // Can be pim or profileImage etc.
-    const mvt = parseInt(getQueryParam(searchParams, 'mvt', '-1')); // Market Value Trend
+    const playerImage = getQueryParam(searchParams, 'playerImage');
+    const mvt = parseInt(getQueryParam(searchParams, 'mvt', '-1'));
 
     const [leagueImage, setLeagueImage] = useState<string | null>(null);
     const [valueHistory, setValueHistory] = useState<ValueHistory[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    
-    // Spielerstatistiken
+
     const [playerStats, setPlayerStats] = useState<PlayerStats[]>([]);
     const [statsLoading, setStatsLoading] = useState(false);
     const [statsError, setStatsError] = useState<string | null>(null);
-    
-    // Vereinsspiele
+
     const [clubMatches, setClubMatches] = useState<ClubMatch[]>([]);
     const [matchesLoading, setMatchesLoading] = useState(false);
     const [matchesError, setMatchesError] = useState<string | null>(null);
 
-    // Get league image from localStorage
+    // --- Fetching useEffect hooks remain the same ---
+    // Get league image
     useEffect(() => {
+        // ... (no changes needed here)
         if (leagueId) {
             const storedLeague = localStorage.getItem('selectedLeague');
             if (storedLeague) {
@@ -107,148 +183,155 @@ function PlayerInfoContent() {
 
     // Fetch player value history
     useEffect(() => {
-        const fetchValueHistory = async () => {
+        // ... (no changes needed here)
+         const fetchValueHistory = async () => {
             if (!playerId || playerId === '-') return;
-            
             setIsLoading(true);
             setError(null);
             try {
-                // Construct the URL with query parameter
                 const apiUrl = `/api/player-values?playerId=${encodeURIComponent(playerId)}`;
-                console.log("Fetching player values from:", apiUrl);
-
                 const response = await fetch(apiUrl);
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-                }
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 const data: ValueHistory[] = await response.json();
-                setValueHistory(data);
-                console.log(`Fetched ${data.length} value entries for player ${playerId}`);
-
+                 // Sortiere die Werthistorie nach Datum aufsteigend, wichtig für die Logik
+                setValueHistory(data.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
             } catch (e) {
-                console.error("Failed to fetch player values:", e);
                 setError(e instanceof Error ? e.message : 'Failed to load player values.');
             } finally {
                 setIsLoading(false);
             }
         };
-
         fetchValueHistory();
     }, [playerId]);
 
     // Fetch player stats
     useEffect(() => {
-        const fetchPlayerStats = async () => {
-            if (!playerId || playerId === '-') return;
-            
-            setStatsLoading(true);
-            setStatsError(null);
-            try {
-                // Construct the URL with query parameter
-                const apiUrl = `/api/player-stats?playerId=${encodeURIComponent(playerId)}`;
-                console.log("Fetching player stats from:", apiUrl);
-
-                const response = await fetch(apiUrl);
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-                }
-                const data: PlayerStats[] = await response.json();
-                setPlayerStats(data);
-                console.log(`Fetched ${data.length} stat entries for player ${playerId}`);
-
-            } catch (e) {
-                console.error("Failed to fetch player stats:", e);
-                setStatsError(e instanceof Error ? e.message : 'Failed to load player statistics.');
-            } finally {
-                setStatsLoading(false);
-            }
-        };
-
+        // ... (no changes needed here)
+         const fetchPlayerStats = async () => {
+             if (!playerId || playerId === '-') return;
+             setStatsLoading(true);
+             setStatsError(null);
+             try {
+                 const apiUrl = `/api/player-stats?playerId=${encodeURIComponent(playerId)}`;
+                 const response = await fetch(apiUrl);
+                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                 const data: PlayerStats[] = await response.json();
+                 setPlayerStats(data.sort((a, b) => a.matchday - b.matchday)); // Sortiere nach Spieltag
+             } catch (e) {
+                 setStatsError(e instanceof Error ? e.message : 'Failed to load player statistics.');
+             } finally {
+                 setStatsLoading(false);
+             }
+         };
         fetchPlayerStats();
     }, [playerId]);
 
     // Fetch club matches
     useEffect(() => {
-        const fetchClubMatches = async () => {
-            if (!teamId || teamId === '-') return;
-            
-            setMatchesLoading(true);
-            setMatchesError(null);
-            try {
-                // Construct the URL with query parameter
-                const apiUrl = `/api/club-matches?clubId=${encodeURIComponent(teamId)}`;
-                console.log("Fetching club matches from:", apiUrl);
-
-                const response = await fetch(apiUrl);
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-                }
-                const data: ClubMatch[] = await response.json();
-                setClubMatches(data);
-                console.log(`Fetched ${data.length} match entries for club ${teamId}`);
-
-            } catch (e) {
-                console.error("Failed to fetch club matches:", e);
-                setMatchesError(e instanceof Error ? e.message : 'Failed to load club matches.');
-            } finally {
-                setMatchesLoading(false);
-            }
-        };
-
+        // ... (no changes needed here)
+         const fetchClubMatches = async () => {
+             if (!teamId || teamId === '-') return;
+             setMatchesLoading(true);
+             setMatchesError(null);
+             try {
+                 const apiUrl = `/api/club-matches?clubId=${encodeURIComponent(teamId)}`;
+                 const response = await fetch(apiUrl);
+                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                 const data: ClubMatch[] = await response.json();
+                 setClubMatches(data.sort((a, b) => a.matchday - b.matchday)); // Sortiere nach Spieltag
+             } catch (e) {
+                 setMatchesError(e instanceof Error ? e.message : 'Failed to load club matches.');
+             } finally {
+                 setMatchesLoading(false);
+             }
+         };
         fetchClubMatches();
     }, [teamId]);
+    // -----------------------------------------------
+
+    // Combine data for visualization using useMemo for performance
+    const combinedMatchdayData = useMemo((): MatchdayVizData[] => {
+        const combined: MatchdayVizData[] = [];
+        const statsMap = new Map(playerStats.map(stat => [stat.matchday, stat]));
+        const matchMap = new Map(clubMatches.map(match => [match.matchday, match]));
+
+        for (let i = 1; i <= 34; i++) {
+            const stat = statsMap.get(i);
+            const points = stat?.points ?? null;
+            const marketValue = findMarketValueForMatchday(i, clubMatches, valueHistory);
+            const marketValueFormatted = marketValue !== null ? formatCurrency(marketValue) : null;
+
+            combined.push({
+                matchday: i,
+                points: points,
+                marketValue: marketValue,
+                marketValueFormatted: marketValueFormatted
+            });
+        }
+        return combined;
+    }, [playerStats, clubMatches, valueHistory]);
+
+    // Calculate max/min values for scaling the visualization
+    const { maxPoints, minPoints, maxMarketValue } = useMemo(() => {
+        const pointsValues = combinedMatchdayData.map(d => d.points).filter((p): p is number => p !== null);
+        const marketValues = combinedMatchdayData.map(d => d.marketValue).filter((mv): mv is number => mv !== null);
+
+        return {
+            maxPoints: pointsValues.length > 0 ? Math.max(0, ...pointsValues) : 0, // Max nicht unter 0
+            minPoints: pointsValues.length > 0 ? Math.min(0, ...pointsValues) : 0, // Min nicht über 0
+            maxMarketValue: marketValues.length > 0 ? Math.max(...marketValues) : 0,
+        };
+    }, [combinedMatchdayData]);
+
 
     const teamData = getTeamData(teamId ?? '');
-
-    // Construct full image URL
-    const imageUrl = playerImage && playerImage !== '-' 
-                     ? (playerImage.startsWith('http') || playerImage.startsWith('/') ? playerImage : `${CDN_BASE_URL}${playerImage}`) 
+    const imageUrl = playerImage && playerImage !== '-'
+                     ? (playerImage.startsWith('http') || playerImage.startsWith('/') ? playerImage : `${CDN_BASE_URL}${playerImage}`)
                      : '/placeholder.png';
 
-    // Determine trend icon and color (copied from market page logic)
     let trendIcon = '→';
     let trendColor = 'text-gray-500 dark:text-gray-400';
-    if (mvt === 1) { // Up
-        trendIcon = '↑';
-        trendColor = 'text-green-600 dark:text-green-400';
-    } else if (mvt === 2) { // Down
-        trendIcon = '↓';
-        trendColor = 'text-red-600 dark:text-red-400';
-    }
+    if (mvt === 1) { trendIcon = '↑'; trendColor = 'text-green-600 dark:text-green-400'; }
+    else if (mvt === 2) { trendIcon = '↓'; trendColor = 'text-red-600 dark:text-red-400'; }
 
     const handleBack = () => router.back();
 
+    // Check if data is ready for the table/visualization
+    const isDataReady = !statsLoading && !matchesLoading && !isLoading && !statsError && !matchesError;
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-900 dark:to-gray-800">
-            <header className="bg-white dark:bg-gray-850 shadow">
+            {/* Header bleibt gleich */}
+             <header className="bg-white dark:bg-gray-850 shadow">
                 <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-                    <div className="flex items-center space-x-3">
-                        {leagueId && leagueImage && (
-                             <button onClick={() => router.push(`/dashboard?league=${leagueId}`)} title="Zum Liga-Dashboard">
-                                <img 
-                                    src={leagueImage} 
-                                    alt="Liga Logo" 
-                                    className="h-10 w-10 rounded-md object-cover hover:opacity-80 transition-opacity"
-                                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-                                />
-                             </button>
-                        )}
-                        <h1 className="text-xl font-bold text-gray-900 dark:text-white truncate">
-                            {firstName !== '-' ? `${firstName} ${lastName}` : lastName}
-                        </h1>
-                    </div>
-                    <button onClick={handleBack} className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">
-                        Zurück
-                    </button>
-                </div>
-            </header>
-            <main className="max-w-4xl mx-auto py-6 sm:px-6 lg:px-8">
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-                    <div className="p-6 flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-6">
-                        <img 
+                     <div className="flex items-center space-x-3">
+                         {leagueId && leagueImage && (
+                              <button onClick={() => router.push(`/dashboard?league=${leagueId}`)} title="Zum Liga-Dashboard">
+                                 <img
+                                     src={leagueImage}
+                                     alt="Liga Logo"
+                                     className="h-10 w-10 rounded-md object-cover hover:opacity-80 transition-opacity"
+                                     onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                                 />
+                              </button>
+                         )}
+                         <h1 className="text-xl font-bold text-gray-900 dark:text-white truncate">
+                             {firstName !== '-' ? `${firstName} ${lastName}` : lastName}
+                         </h1>
+                     </div>
+                     <button onClick={handleBack} className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">
+                         Zurück
+                     </button>
+                 </div>
+             </header>
+
+            {/* Main Content */}
+            <main className="max-w-full mx-auto py-6 px-2 sm:px-4 lg:px-6"> {/* Use max-w-full for wide table */}
+                {/* Player Info Box bleibt gleich */}
+                <div className="max-w-4xl mx-auto bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden mb-6">
+                     {/* ... (Inhalt der Spielerinfo-Box unverändert) ... */}
+                     <div className="p-6 flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-6">
+                        <img
                             src={imageUrl}
                             alt={`${lastName}`}
                             className="h-32 w-32 rounded-full object-cover border-4 border-gray-200 dark:border-gray-700 shadow-md"
@@ -297,537 +380,241 @@ function PlayerInfoContent() {
                             <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Verein-ID</dt>
                             <dd className="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{teamId}</dd>
                         </div>
-                         {/* Add more fields here later as needed */}
                     </div>
-                </div>
-                
-                {/* Player Stats Section */}
-                <div className="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+                 </div>
+
+                {/* Player Stats & Visualization Section */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
                     <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                         <h3 className="text-lg font-medium text-gray-900 dark:text-white">Spieler- und Vereinsdaten</h3>
                     </div>
-                    
-                    <div className="px-6 py-4">
-                        {statsLoading || matchesLoading ? (
-                            <p className="text-gray-600 dark:text-gray-400 text-center py-4">Lade Daten...</p>
-                        ) : statsError || matchesError ? (
-                            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative dark:bg-red-900/30 dark:border-red-600 dark:text-red-300">
-                                <strong className="font-bold">Fehler!</strong>
-                                <span className="block sm:inline"> {statsError || matchesError}</span>
-                            </div>
-                        ) : playerStats.length === 0 && clubMatches.length === 0 ? (
-                            <p className="text-gray-600 dark:text-gray-400 text-center py-4">Keine Daten verfügbar.</p>
-                        ) : (
-                            <div>
-                                {/* Kombinierte Tabelle mit Spieler- und Vereinsdaten */}
-                                <div className="overflow-x-auto mb-6">
-                                    <div className="min-w-max">
-                                        <table className="divide-y divide-gray-200 dark:divide-gray-700">
-                                            <thead className="bg-gray-50 dark:bg-gray-700">
-                                                <tr>
-                                                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-16 sticky left-0 bg-gray-50 dark:bg-gray-700 z-10">
-                                                        MD:
-                                                    </th>
-                                                    {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => (
-                                                        <th key={matchday} scope="col" className="px-3 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                                            {matchday}
-                                                        </th>
-                                                    ))}
-                                                </tr>
-                                            </thead>
-                                            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                                                {/* Datum */}
-                                                <tr className="bg-gray-50 dark:bg-gray-700/50">
-                                                    <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10">
-                                                        Datum:
-                                                    </td>
-                                                    {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
-                                                        const matchingMatch = clubMatches.find(match => match.matchday === matchday);
-                                                        const formattedDate = matchingMatch?.match_date ? 
-                                                            new Date(matchingMatch.match_date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) : '-';
-                                                        return (
-                                                            <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">
-                                                                {formattedDate}
-                                                            </td>
-                                                        );
-                                                    })}
-                                                </tr>
-                                                
-                                                {/* Heim/Auswärts */}
-                                                <tr>
-                                                    <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10">
-                                                        Place:
-                                                    </td>
-                                                    {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
-                                                        const matchingMatch = clubMatches.find(match => match.matchday === matchday);
-                                                        
-                                                        const playerTeamId = String(teamId);
-                                                        const homeClubId = String(matchingMatch?.home_club_id || '');
-                                                        const isHome = playerTeamId === homeClubId;
-                                                        
-                                                        return (
-                                                            <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">
-                                                                {matchingMatch ? (isHome ? 'H' : 'A') : '-'}
-                                                            </td>
-                                                        );
-                                                    })}
-                                                </tr>
-                                                
-                                                {/* Gegner */}
-                                                <tr className="bg-gray-50 dark:bg-gray-700/50">
-                                                    <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10">
-                                                        Gegner:
-                                                    </td>
-                                                    {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
-                                                        const matchingMatch = clubMatches.find(match => match.matchday === matchday);
-                                                        if (!matchingMatch) return <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">-</td>;
-                                                        
-                                                        const playerTeamId = String(teamId);
-                                                        const homeClubId = String(matchingMatch.home_club_id || '');
-                                                        const isHome = playerTeamId === homeClubId;
-                                                        
-                                                        const opponentShortname = isHome ? 
-                                                            matchingMatch.away_club_shortname : 
-                                                            matchingMatch.home_club_shortname;
-                                                        
-                                                        return (
-                                                            <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">
-                                                                {opponentShortname || '-'}
-                                                            </td>
-                                                        );
-                                                    })}
-                                                </tr>
-                                                
-                                                {/* Ergebnis */}
-                                                <tr>
-                                                    <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10">
-                                                        Ergebnis:
-                                                    </td>
-                                                    {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
-                                                        const matchingMatch = clubMatches.find(match => match.matchday === matchday);
-                                                        return (
-                                                            <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">
-                                                                {matchingMatch ? `${matchingMatch.home_score}:${matchingMatch.away_score}` : '-'}
-                                                            </td>
-                                                        );
-                                                    })}
-                                                </tr>
-                                                
-                                                {/* W/D/L */}
-                                                <tr className="bg-gray-50 dark:bg-gray-700/50">
-                                                    <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10">
-                                                        W/D/L:
-                                                    </td>
-                                                    {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
-                                                        const matchingMatch = clubMatches.find(match => match.matchday === matchday);
-                                                        if (!matchingMatch) return <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">-</td>;
-                                                        
-                                                        const playerTeamId = String(teamId);
-                                                        const homeClubId = String(matchingMatch.home_club_id || '');
-                                                        const isHome = playerTeamId === homeClubId;
-                                                        
-                                                        let result = 'D';
-                                                        const homeScore = matchingMatch.home_score;
-                                                        const awayScore = matchingMatch.away_score;
-                                                        
-                                                        if (homeScore > awayScore) {
-                                                            result = isHome ? 'W' : 'L';
-                                                        } else if (homeScore < awayScore) {
-                                                            result = isHome ? 'L' : 'W';
-                                                        }
-                                                        
-                                                        let resultClass = "text-yellow-500 dark:text-yellow-400 font-medium";
-                                                        if (result === 'W') {
-                                                            resultClass = "text-green-600 dark:text-green-400 font-bold";
-                                                        } else if (result === 'L') {
-                                                            resultClass = "text-red-600 dark:text-red-400 font-medium";
-                                                        }
-                                                        
-                                                        return (
-                                                            <td key={matchday} className={`px-3 py-2 text-center text-sm ${resultClass}`}>
-                                                                {result}
-                                                            </td>
-                                                        );
-                                                    })}
-                                                </tr>
-                                                
-                                                {/* Punkte */}
-                                                <tr className="bg-gray-50 dark:bg-gray-700/50">
-                                                    <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10">
-                                                        Punkte:
-                                                    </td>
-                                                    {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
-                                                        const matchingStat = playerStats.find(stat => stat.matchday === matchday);
-                                                        
-                                                        // Definiere eine CSS-Klasse basierend auf der Punktzahl
-                                                        let pointClass = "text-gray-500 dark:text-gray-400";
-                                                        if (matchingStat && matchingStat.points > 0) {
-                                                            pointClass = "text-green-600 dark:text-green-400 font-medium";
-                                                        } else if (matchingStat && matchingStat.points < 0) {
-                                                            pointClass = "text-red-600 dark:text-red-400 font-medium";
-                                                        }
-                                                        
-                                                        return (
-                                                            <td key={matchday} className={`px-3 py-2 text-center text-sm ${pointClass}`}>
-                                                                {matchingStat ? matchingStat.points : '-'}
-                                                            </td>
-                                                        );
-                                                    })}
-                                                </tr>
-                                                
-                                                {/* Marktwert */}
-                                                <tr>
-                                                    <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10">
-                                                        Marktwert:
-                                                    </td>
-                                                    {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
-                                                        const matchingMatch = clubMatches.find(match => match.matchday === matchday);
-                                                        if (!matchingMatch) return <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">-</td>;
-                                                        
-                                                        // Finde die Werthistorie mit dem nächstliegenden Datum zum Spieltagsdatum
-                                                        const matchDate = new Date(matchingMatch.match_date);
-                                                        let closestValueEntry: ValueHistory | null = null;
-                                                        let minDaysDiff = Infinity;
-                                                        
-                                                        valueHistory.forEach(entry => {
-                                                            const entryDate = new Date(entry.date);
-                                                            const daysDiff = Math.abs(matchDate.getTime() - entryDate.getTime()) / (1000 * 60 * 60 * 24);
-                                                            
-                                                            // Wir suchen den nächsten Wert, bevorzugt vor dem Spieltag (aber max. 7 Tage davor)
-                                                            if (daysDiff < minDaysDiff && (entryDate <= matchDate || daysDiff <= 7)) {
-                                                                minDaysDiff = daysDiff;
-                                                                closestValueEntry = entry;
-                                                            }
-                                                        });
-                                                        
-                                                        return (
-                                                            <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">
-                                                                {closestValueEntry && 'value' in closestValueEntry ? 
-                                                                    formatCurrency(closestValueEntry.value).replace('€', '').trim() + '€' : 
-                                                                    '-'}
-                                                            </td>
-                                                        );
-                                                    })}
-                                                </tr>
-                                                
-                                                {/* Minuten */}
-                                                <tr>
-                                                    <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10">
-                                                        Min:
-                                                    </td>
-                                                    {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
-                                                        const matchingStat = playerStats.find(stat => stat.matchday === matchday);
-                                                        return (
-                                                            <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">
-                                                                {matchingStat ? matchingStat.minutes : '0'}
-                                                            </td>
-                                                        );
-                                                    })}
-                                                </tr>
-                                                
-                                                {/* Note */}
-                                                <tr className="bg-gray-50 dark:bg-gray-700/50">
-                                                    <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10">
-                                                        Note:
-                                                    </td>
-                                                    {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
-                                                        const matchingStat = playerStats.find(stat => stat.matchday === matchday);
-                                                        return (
-                                                            <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">
-                                                                {matchingStat && matchingStat.liga_note !== null && !isNaN(Number(matchingStat.liga_note)) 
-                                                                    ? Number(matchingStat.liga_note).toFixed(1) 
-                                                                    : '-'}
-                                                            </td>
-                                                        );
-                                                    })}
-                                                </tr>
-                                                
-                                                {/* Startelf */}
-                                                <tr>
-                                                    <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10">
-                                                        S11:
-                                                    </td>
-                                                    {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
-                                                        const matchingStat = playerStats.find(stat => stat.matchday === matchday);
-                                                        return (
-                                                            <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">
-                                                                {matchingStat ? (matchingStat.started ? '✓' : '✗') : '-'}
-                                                            </td>
-                                                        );
-                                                    })}
-                                                </tr>
-                                                
-                                                {/* Status */}
-                                                <tr className="bg-gray-50 dark:bg-gray-700/50">
-                                                    <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10">
-                                                        Status:
-                                                    </td>
-                                                    {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
-                                                        const matchingStat = playerStats.find(stat => stat.matchday === matchday);
-                                                        return (
-                                                            <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">
-                                                                {matchingStat ? (
-                                                                    matchingStat.status === 1 ? (
-                                                                        <span className="text-red-600 dark:text-red-400" title={matchingStat.injury_text || 'Verletzt'}>⚕</span>
-                                                                    ) : matchingStat.status === 2 ? (
-                                                                        <span className="text-yellow-600 dark:text-yellow-400" title="Fraglich">?</span>
-                                                                    ) : (
-                                                                        <span className="text-green-600 dark:text-green-400" title="Fit">✓</span>
-                                                                    )
-                                                                ) : '-'}
-                                                            </td>
-                                                        );
-                                                    })}
-                                                </tr>
-                                                
-                                                {/* Tore */}
-                                                <tr>
-                                                    <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10">
-                                                        Tore:
-                                                    </td>
-                                                    {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
-                                                        const matchingStat = playerStats.find(stat => stat.matchday === matchday);
-                                                        return (
-                                                            <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">
-                                                                {matchingStat && matchingStat.goals > 0 ? matchingStat.goals : '-'}
-                                                            </td>
-                                                        );
-                                                    })}
-                                                </tr>
-                                                
-                                                {/* Assists */}
-                                                <tr className="bg-gray-50 dark:bg-gray-700/50">
-                                                    <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10">
-                                                        Assists:
-                                                    </td>
-                                                    {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
-                                                        const matchingStat = playerStats.find(stat => stat.matchday === matchday);
-                                                        return (
-                                                            <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">
-                                                                {matchingStat && matchingStat.assist > 0 ? matchingStat.assist : '-'}
-                                                            </td>
-                                                        );
-                                                    })}
-                                                </tr>
-                                                
-                                                {/* Forecast */}
-                                                <tr>
-                                                    <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10">
-                                                        Forecast:
-                                                    </td>
-                                                    {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
-                                                        const matchingStat = playerStats.find(stat => stat.matchday === matchday);
-                                                        return (
-                                                            <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">
-                                                                {matchingStat && matchingStat.forecast !== null ? matchingStat.forecast : '-'}
-                                                            </td>
-                                                        );
-                                                    })}
-                                                </tr>
-                                                
-                                                {/* Gelbe Karten */}
-                                                <tr className="bg-gray-50 dark:bg-gray-700/50">
-                                                    <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10">
-                                                        Gelb:
-                                                    </td>
-                                                    {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
-                                                        const matchingStat = playerStats.find(stat => stat.matchday === matchday);
-                                                        return (
-                                                            <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">
-                                                                {matchingStat && matchingStat.yellow > 0 ? (
-                                                                    <span className="inline-flex items-center justify-center w-5 h-5 bg-yellow-400 rounded-sm text-xs text-gray-900">
-                                                                        {matchingStat.yellow}
-                                                                    </span>
-                                                                ) : '-'}
-                                                            </td>
-                                                        );
-                                                    })}
-                                                </tr>
-                                                
-                                                {/* Rote Karten */}
-                                                <tr>
-                                                    <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10">
-                                                        Rot:
-                                                    </td>
-                                                    {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
-                                                        const matchingStat = playerStats.find(stat => stat.matchday === matchday);
-                                                        return (
-                                                            <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">
-                                                                {matchingStat && matchingStat.red > 0 ? (
-                                                                    <span className="inline-flex items-center justify-center w-5 h-5 bg-red-600 rounded-sm text-xs text-white">
-                                                                        {matchingStat.red}
-                                                                    </span>
-                                                                ) : '-'}
-                                                            </td>
-                                                        );
-                                                    })}
-                                                </tr>
-                                                
-                                                {/* Heim-Wahrscheinlichkeit */}
-                                                <tr className="bg-gray-50 dark:bg-gray-700/50">
-                                                    <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10">
-                                                        Heim-W:
-                                                    </td>
-                                                    {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
-                                                        const matchingMatch = clubMatches.find(match => match.matchday === matchday);
-                                                        return (
-                                                            <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">
-                                                                {matchingMatch ? `${(matchingMatch.home_probabilities * 100).toFixed(1)}%` : '-'}
-                                                            </td>
-                                                        );
-                                                    })}
-                                                </tr>
-                                                
-                                                {/* Unentschieden-Wahrscheinlichkeit */}
-                                                <tr>
-                                                    <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10">
-                                                        Unentschieden:
-                                                    </td>
-                                                    {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
-                                                        const matchingMatch = clubMatches.find(match => match.matchday === matchday);
-                                                        return (
-                                                            <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">
-                                                                {matchingMatch ? `${(matchingMatch.draw_probabilities * 100).toFixed(1)}%` : '-'}
-                                                            </td>
-                                                        );
-                                                    })}
-                                                </tr>
-                                                
-                                                {/* Auswärts-Wahrscheinlichkeit */}
-                                                <tr className="bg-gray-50 dark:bg-gray-700/50">
-                                                    <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10">
-                                                        Auswärts-W:
-                                                    </td>
-                                                    {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
-                                                        const matchingMatch = clubMatches.find(match => match.matchday === matchday);
-                                                        return (
-                                                            <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">
-                                                                {matchingMatch ? `${(matchingMatch.away_probabilities * 100).toFixed(1)}%` : '-'}
-                                                            </td>
-                                                        );
-                                                    })}
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
+
+                    <div className="overflow-x-auto"> {/* Wichtig für die breite Tabelle */}
+                         <div className="min-w-max"> {/* Sorgt dafür, dass der Inhalt nicht umbricht */}
+                            {statsLoading || matchesLoading || isLoading ? (
+                                <p className="text-gray-600 dark:text-gray-400 text-center py-4 px-6">Lade Daten...</p>
+                            ) : statsError || matchesError ? (
+                                <div className="m-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative dark:bg-red-900/30 dark:border-red-600 dark:text-red-300">
+                                    <strong className="font-bold">Fehler!</strong>
+                                    <span className="block sm:inline"> {statsError || matchesError || error}</span>
                                 </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-                
-                {/* Diagramme Section */}
+                            ) : combinedMatchdayData.length === 0 && playerStats.length === 0 && clubMatches.length === 0 ? (
+                                <p className="text-gray-600 dark:text-gray-400 text-center py-4 px-6">Keine Daten verfügbar.</p>
+                            ) : (
+                                <table className="divide-y divide-gray-200 dark:divide-gray-700 w-full">
+                                    <thead className="bg-gray-50 dark:bg-gray-700">
+                                        {/* -------- START: Integrierte Visualisierung (JETZT ZUERST) -------- */}
+                                        <tr className="bg-gray-100 dark:bg-gray-750 border-b border-gray-300 dark:border-gray-600">
+                                            {/* Sticky Header für die Grafik-Zeile */}
+                                            <td className="px-3 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 sticky left-0 bg-gray-100 dark:bg-gray-750 z-20 align-top w-24"> {/* Breite wie MD-Header, sticky, z-index, align-top */}
+                                                Grafik:
+                                            </td>
+                                            {/* Visualisierungszellen */}
+                                            {combinedMatchdayData.map(({ matchday, points, marketValue }) => {
+                                                const pointsHeight = calculateVizHeight(points, maxPoints, minPoints);
+                                                const mvHeight = calculateVizHeight(marketValue, maxMarketValue, 0);
+                                                const range = maxPoints - minPoints;
+                                                const zeroLinePercent = range > 0 ? Math.max(0, Math.min(100, (0 - minPoints) / range * 100)) : 50;
+                                                const isNegativePoints = points !== null && points < 0;
+
+                                                return (
+                                                    <td key={`viz-${matchday}`} className="px-1 py-2 text-center align-bottom h-80 relative border-r border-gray-200 dark:border-gray-700 w-16"> {/* Feste Höhe HIER, feste Breite */}
+                                                        {/* Container für Bars */}
+                                                        <div className="w-full h-full flex justify-center items-end space-x-px">
+                                                             {/* Marktwert Balken (Grün) */}
+                                                             {marketValue !== null && (
+                                                                <div
+                                                                    className="bg-green-500 hover:bg-green-400 w-2"
+                                                                    style={{ height: `${mvHeight}%` }}
+                                                                    title={`MW: ${formatCurrency(marketValue ?? 0)}`} // Handle null case for title
+                                                                ></div>
+                                                             )}
+                                                             {/* Punkte Balken (Blau für +, Rot für -) */}
+                                                             {points !== null && (
+                                                                  <div
+                                                                    className={`${isNegativePoints ? 'bg-red-500 hover:bg-red-400' : 'bg-blue-500 hover:bg-blue-400'} w-2`}
+                                                                    style={{
+                                                                        height: `${calculateVizHeight(Math.abs(points ?? 0), Math.max(Math.abs(maxPoints), Math.abs(minPoints)))}%`,
+                                                                    }}
+                                                                    title={`Punkte: ${points}`}
+                                                                ></div>
+                                                             )}
+                                                        </div>
+                                                         {/* Text Labels Oben */}
+                                                         <div className="absolute top-0 left-0 right-0 px-1 text-center pointer-events-none">
+                                                             <div className={`text-xs ${points !== null && points < 0 ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400' } whitespace-nowrap`}>
+                                                                 {points ?? '-'}
+                                                             </div>
+                                                             <div className="text-[10px] text-green-700 dark:text-green-400 whitespace-nowrap truncate">
+                                                                 {marketValue !== null ? (formatCurrency(marketValue).replace('€', '').replace('.000', 'k').replace('.',',')) : '-'}
+                                                             </div>
+                                                         </div>
+                                                    </td>
+                                                );
+                                            })}
+                                        </tr>
+                                        {/* -------- END: Integrierte Visualisierung -------- */}
+
+                                        {/* Header Row for Matchday Numbers (JETZT ZWEITENS) */}
+                                        <tr>
+                                            {/* Sticky Header für die MD-Zeile */}
+                                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-24 sticky left-0 bg-gray-50 dark:bg-gray-700 z-20"> {/* Sticky, z-index */}
+                                                MD:
+                                            </th>
+                                            {/* Spieltag Nummern Header */}
+                                            {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => (
+                                                <th key={matchday} scope="col" className="px-3 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-16"> {/* Feste Breite */}
+                                                    {matchday}
+                                                </th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                        {/* Datum */}
+                                        <tr className="bg-gray-50 dark:bg-gray-700/50">
+                                            <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10 w-24">Datum:</td>
+                                            {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
+                                                const matchingMatch = clubMatches.find(match => match.matchday === matchday);
+                                                const formattedDate = matchingMatch?.match_date ? new Date(matchingMatch.match_date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) : '-';
+                                                return (<td key={matchday} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{formattedDate}</td>);
+                                            })}
+                                        </tr>
+                                        {/* Place */}
+                                        <tr>
+                                            <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10 w-24">Place:</td>
+                                            {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
+                                                const matchingMatch = clubMatches.find(match => match.matchday === matchday);
+                                                const isHome = matchingMatch ? String(teamId) === String(matchingMatch.home_club_id) : null;
+                                                return (<td key={matchday} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{matchingMatch ? (isHome ? 'H' : 'A') : '-'}</td>);
+                                            })}
+                                        </tr>
+                                        {/* Gegner */}
+                                        <tr className="bg-gray-50 dark:bg-gray-700/50">
+                                            <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10 w-24">Gegner:</td>
+                                            {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
+                                                const matchingMatch = clubMatches.find(match => match.matchday === matchday);
+                                                if (!matchingMatch) return <td key={matchday} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">-</td>;
+                                                const isHome = String(teamId) === String(matchingMatch.home_club_id);
+                                                const opponentShortname = isHome ? matchingMatch.away_club_shortname : matchingMatch.home_club_shortname;
+                                                return (<td key={matchday} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{opponentShortname || '-'}</td>);
+                                            })}
+                                        </tr>
+                                        {/* Ergebnis */}
+                                        <tr>
+                                            <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10 w-24">Ergebnis:</td>
+                                            {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
+                                                const matchingMatch = clubMatches.find(match => match.matchday === matchday);
+                                                return (<td key={matchday} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{matchingMatch ? `${matchingMatch.home_score}:${matchingMatch.away_score}` : '-'}</td>);
+                                            })}
+                                        </tr>
+                                        {/* W/D/L */}
+                                        <tr className="bg-gray-50 dark:bg-gray-700/50">
+                                            <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10 w-24">W/D/L:</td>
+                                            {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
+                                                const matchingMatch = clubMatches.find(match => match.matchday === matchday);
+                                                if (!matchingMatch) return <td key={matchday} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">-</td>;
+                                                const isHome = String(teamId) === String(matchingMatch.home_club_id);
+                                                let result = 'D'; const hs = matchingMatch.home_score; const as = matchingMatch.away_score; if (hs > as) { result = isHome ? 'W' : 'L'; } else if (hs < as) { result = isHome ? 'L' : 'W'; }
+                                                let rc = "text-yellow-500 dark:text-yellow-400 font-medium"; if (result === 'W') { rc = "text-green-600 dark:text-green-400 font-bold"; } else if (result === 'L') { rc = "text-red-600 dark:text-red-400 font-medium"; }
+                                                return <td key={matchday} className={`px-3 py-2 text-center text-xs ${rc} w-16`}>{result}</td>;
+                                            })}
+                                        </tr>
+                                        {/* Punkte */}
+                                        <tr className="bg-gray-50 dark:bg-gray-700/50">
+                                             <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10 w-24">Punkte:</td>
+                                             {combinedMatchdayData.map(({ matchday, points }) => {
+                                                 let pc = "text-gray-500 dark:text-gray-400"; if (points !== null && points > 0) pc = "text-green-600 dark:text-green-400 font-medium"; else if (points !== null && points < 0) pc = "text-red-600 dark:text-red-400 font-medium";
+                                                 return (<td key={`pts-data-${matchday}`} className={`px-3 py-2 text-center text-xs ${pc} w-16`}>{points ?? '-'}</td>);
+                                             })}
+                                        </tr>
+                                        {/* Marktwert */}
+                                        <tr>
+                                             <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10 w-24">Marktwert:</td>
+                                             {combinedMatchdayData.map(({ matchday, marketValueFormatted }) => (<td key={`mv-data-${matchday}`} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{marketValueFormatted ? marketValueFormatted.replace(' €', '€') : '-'}</td>))}
+                                        </tr>
+                                        {/* Minuten */}
+                                        <tr>
+                                            <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10 w-24">Min:</td>
+                                            {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => { const s = playerStats.find(stat => stat.matchday === matchday); return <td key={matchday} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{s ? s.minutes : '0'}</td>; })}
+                                        </tr>
+                                        {/* Note */}
+                                        <tr className="bg-gray-50 dark:bg-gray-700/50">
+                                            <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10 w-24">Note:</td>
+                                            {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => { const s = playerStats.find(stat => stat.matchday === matchday); const n = s?.liga_note; return <td key={matchday} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{n !== null && !isNaN(Number(n)) ? Number(n).toFixed(1) : '-'}</td>; })}
+                                        </tr>
+                                        {/* S11 */}
+                                        <tr>
+                                            <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10 w-24">S11:</td>
+                                            {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => { const s = playerStats.find(stat => stat.matchday === matchday); return <td key={matchday} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{s ? (s.started ? '✓' : '✗') : '-'}</td>; })}
+                                        </tr>
+                                        {/* Status */}
+                                        <tr className="bg-gray-50 dark:bg-gray-700/50">
+                                            <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10 w-24">Status:</td>
+                                            {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
+                                                const s = playerStats.find(stat => stat.matchday === matchday);
+                                                return (<td key={matchday} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{s ? (s.status === 1 ? (<span className="text-red-600 dark:text-red-400" title={s.injury_text || 'Verletzt'}>⚕</span>) : s.status === 2 ? (<span className="text-yellow-600 dark:text-yellow-400" title="Fraglich">?</span>) : (<span className="text-green-600 dark:text-green-400" title="Fit">✓</span>)) : '-'}</td>);
+                                            })}
+                                        </tr>
+                                        {/* Tore */}
+                                        <tr>
+                                            <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10 w-24">Tore:</td>
+                                            {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => { const s = playerStats.find(stat => stat.matchday === matchday); return <td key={matchday} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{s && s.goals > 0 ? s.goals : '-'}</td>; })}
+                                        </tr>
+                                        {/* Assists */}
+                                        <tr className="bg-gray-50 dark:bg-gray-700/50">
+                                            <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10 w-24">Assists:</td>
+                                            {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => { const s = playerStats.find(stat => stat.matchday === matchday); return <td key={matchday} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{s && s.assist > 0 ? s.assist : '-'}</td>; })}
+                                        </tr>
+                                        {/* Forecast */}
+                                        <tr>
+                                            <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10 w-24">Forecast:</td>
+                                            {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => { const s = playerStats.find(stat => stat.matchday === matchday); return <td key={matchday} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{s && s.forecast !== null ? s.forecast : '-'}</td>; })}
+                                        </tr>
+                                        {/* Gelb */}
+                                        <tr className="bg-gray-50 dark:bg-gray-700/50">
+                                            <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10 w-24">Gelb:</td>
+                                            {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => { const s = playerStats.find(stat => stat.matchday === matchday); return (<td key={matchday} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{s && s.yellow > 0 ? (<span className="inline-flex items-center justify-center w-4 h-4 bg-yellow-400 rounded-sm text-[10px] text-gray-900">{s.yellow}</span>) : '-'}</td>); })}
+                                        </tr>
+                                        {/* Rot */}
+                                        <tr>
+                                            <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10 w-24">Rot:</td>
+                                            {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => { const s = playerStats.find(stat => stat.matchday === matchday); return (<td key={matchday} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{s && s.red > 0 ? (<span className="inline-flex items-center justify-center w-4 h-4 bg-red-600 rounded-sm text-[10px] text-white">{s.red}</span>) : '-'}</td>); })}
+                                        </tr>
+                                        {/* Heim-W */}
+                                        <tr className="bg-gray-50 dark:bg-gray-700/50">
+                                            <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10 w-24">Heim-W:</td>
+                                            {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => { const m = clubMatches.find(match => match.matchday === matchday); return (<td key={matchday} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{m ? `${(m.home_probabilities * 100).toFixed(0)}%` : '-'}</td>); })}
+                                        </tr>
+                                        {/* Unentschieden */}
+                                        <tr>
+                                            <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10 w-24">Unentsch.:</td>
+                                            {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => { const m = clubMatches.find(match => match.matchday === matchday); return (<td key={matchday} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{m ? `${(m.draw_probabilities * 100).toFixed(0)}%` : '-'}</td>); })}
+                                        </tr>
+                                        {/* Auswärts-W */}
+                                        <tr className="bg-gray-50 dark:bg-gray-700/50">
+                                            <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10 w-24">Auswärts-W:</td>
+                                            {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => { const m = clubMatches.find(match => match.matchday === matchday); return (<td key={matchday} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{m ? `${(m.away_probabilities * 100).toFixed(0)}%` : '-'}</td>); })}
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            )}
+                        </div> {/* Ende min-w-max */}
+                    </div> {/* Ende overflow-x-auto */}
+                </div> {/* Ende Stats Section */}
+
+                {/* Diagramme Section kann entfernt oder für andere Diagramme behalten werden */}
+                {/*
                 <div className="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
                     <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                        <h3 className="text-lg font-medium text-gray-900 dark:text-white">Diagramme</h3>
+                        <h3 className="text-lg font-medium text-gray-900 dark:text-white">Zusätzliche Diagramme</h3>
                     </div>
-                    
                     <div className="px-6 py-4">
-                        {(isLoading || statsLoading) ? (
-                            <p className="text-gray-600 dark:text-gray-400 text-center py-4">Lade Diagrammdaten...</p>
-                        ) : (error || statsError) ? (
-                            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative dark:bg-red-900/30 dark:border-red-600 dark:text-red-300">
-                                <strong className="font-bold">Fehler!</strong>
-                                <span className="block sm:inline"> {error || statsError}</span>
-                            </div>
-                        ) : (valueHistory.length === 0 && playerStats.length === 0) ? (
-                            <p className="text-gray-600 dark:text-gray-400 text-center py-4">Keine Diagrammdaten verfügbar.</p>
-                        ) : (
-                            <div>
-                                {/* Diagramm für Wertentwicklung */}
-                                {valueHistory.length > 0 && (
-                                    <div>
-                                        <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-3">Wertentwicklung</h4>
-                                        <div className="h-64 w-full mb-6">
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <LineChart
-                                                    data={valueHistory
-                                                        .slice() // Kopieren des Arrays
-                                                        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()) // Nach Datum sortieren (aufsteigend)
-                                                        .map((entry: ValueHistory) => ({
-                                                            ...entry,
-                                                            formattedDate: new Date(entry.date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }),
-                                                        }))}
-                                                    margin={{ top: 5, right: 30, left: 20, bottom: 25 }}
-                                                >
-                                                    <CartesianGrid strokeDasharray="3 3" stroke="#d1d5db" />
-                                                    <XAxis 
-                                                        dataKey="formattedDate" 
-                                                        tick={{ fill: '#6b7280', fontSize: 12 }}
-                                                        tickMargin={10}
-                                                    />
-                                                    <YAxis 
-                                                        tick={{ fill: '#6b7280', fontSize: 12 }}
-                                                        tickFormatter={(value) => formatCurrency(value).replace('€', '')}
-                                                        width={60}
-                                                        domain={[0, Math.max(...valueHistory.map(entry => entry.value))]}
-                                                    />
-                                                    <Tooltip 
-                                                        formatter={(value: number) => [formatCurrency(value), "Marktwert"]}
-                                                        labelFormatter={(date) => `Datum: ${date}`}
-                                                        contentStyle={{ backgroundColor: '#f9fafb', borderRadius: '0.375rem', border: '1px solid #e5e7eb' }}
-                                                    />
-                                                    <Legend />
-                                                    <Line 
-                                                        type="monotone" 
-                                                        dataKey="value" 
-                                                        name="Marktwert" 
-                                                        stroke="#3b82f6" 
-                                                        activeDot={{ r: 8 }} 
-                                                        strokeWidth={2}
-                                                    />
-                                                </LineChart>
-                                            </ResponsiveContainer>
-                                        </div>
-                                    </div>
-                                )}
-                                
-                                {/* Diagramm für Punkteverlauf */}
-                                {playerStats.length > 0 && (
-                                    <div>
-                                        <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-3">Punkteverlauf</h4>
-                                        <div className="h-64 w-full mb-6">
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <BarChart
-                                                    data={playerStats
-                                                        .slice()
-                                                        .sort((a, b) => a.matchday - b.matchday)}
-                                                    margin={{ top: 5, right: 30, left: 20, bottom: 25 }}
-                                                >
-                                                    <CartesianGrid strokeDasharray="3 3" stroke="#d1d5db" />
-                                                    <XAxis 
-                                                        dataKey="matchday" 
-                                                        tick={{ fill: '#6b7280', fontSize: 12 }}
-                                                        tickMargin={10}
-                                                        label={{ value: 'Spieltag', position: 'insideBottom', offset: -10 }}
-                                                    />
-                                                    <YAxis 
-                                                        tick={{ fill: '#6b7280', fontSize: 12 }}
-                                                        width={40}
-                                                        domain={[0, Math.max(...playerStats.map(entry => entry.points)) + 5]}
-                                                        label={{ value: 'Punkte', angle: -90, position: 'insideLeft' }}
-                                                    />
-                                                    <Tooltip 
-                                                        formatter={(value: number) => [`${value}`, "Punkte"]}
-                                                        labelFormatter={(matchday) => `Spieltag: ${matchday}`}
-                                                        contentStyle={{ backgroundColor: '#f9fafb', borderRadius: '0.375rem', border: '1px solid #e5e7eb' }}
-                                                    />
-                                                    <Legend />
-                                                    <Bar 
-                                                        dataKey="points" 
-                                                        name="Punkte" 
-                                                        fill="#3b82f6"
-                                                        radius={[4, 4, 0, 0]}
-                                                    />
-                                                </BarChart>
-                                            </ResponsiveContainer>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
+                         Hier könnten weiterhin die alten Recharts-Diagramme angezeigt werden, falls gewünscht
+                         {(isLoading || statsLoading) ? <p>Lade...</p> : (error || statsError) ? <p>Fehler...</p> : (...)}
                     </div>
                 </div>
+                */}
+
             </main>
         </div>
     );
@@ -840,4 +627,4 @@ export default function PlayerPage() {
             <PlayerInfoContent />
         </Suspense>
     );
-} 
+}
