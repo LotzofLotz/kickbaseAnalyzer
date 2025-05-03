@@ -301,128 +301,25 @@ function PlayerInfoContent() {
                     </div>
                 </div>
                 
-                {/* Value History Section */}
-                <div className="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-                    <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                        <h3 className="text-lg font-medium text-gray-900 dark:text-white">Wertentwicklung</h3>
-                    </div>
-                    
-                    <div className="px-6 py-4">
-                        {isLoading ? (
-                            <p className="text-gray-600 dark:text-gray-400 text-center py-4">Lade Wertdaten...</p>
-                        ) : error ? (
-                            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative dark:bg-red-900/30 dark:border-red-600 dark:text-red-300">
-                                <strong className="font-bold">Fehler!</strong>
-                                <span className="block sm:inline"> {error}</span>
-                            </div>
-                        ) : valueHistory.length === 0 ? (
-                            <p className="text-gray-600 dark:text-gray-400 text-center py-4">Keine Wertdaten verfügbar.</p>
-                        ) : (
-                            <div>
-                                {/* Diagramm für Wertentwicklung */}
-                                <div className="h-64 w-full mb-6">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <LineChart
-                                            data={valueHistory
-                                                .slice() // Kopieren des Arrays
-                                                .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()) // Nach Datum sortieren (aufsteigend)
-                                                .map(entry => ({
-                                                    ...entry,
-                                                    formattedDate: new Date(entry.date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }),
-                                                }))}
-                                            margin={{ top: 5, right: 30, left: 20, bottom: 25 }}
-                                        >
-                                            <CartesianGrid strokeDasharray="3 3" stroke="#d1d5db" />
-                                            <XAxis 
-                                                dataKey="formattedDate" 
-                                                tick={{ fill: '#6b7280', fontSize: 12 }}
-                                                tickMargin={10}
-                                            />
-                                            <YAxis 
-                                                tick={{ fill: '#6b7280', fontSize: 12 }}
-                                                tickFormatter={(value) => formatCurrency(value).replace('€', '')}
-                                                width={60}
-                                                domain={[0, Math.max(...valueHistory.map(entry => entry.value))]}
-                                            />
-                                            <Tooltip 
-                                                formatter={(value: number) => [formatCurrency(value), "Marktwert"]}
-                                                labelFormatter={(date) => `Datum: ${date}`}
-                                                contentStyle={{ backgroundColor: '#f9fafb', borderRadius: '0.375rem', border: '1px solid #e5e7eb' }}
-                                            />
-                                            <Legend />
-                                            <Line 
-                                                type="monotone" 
-                                                dataKey="value" 
-                                                name="Marktwert" 
-                                                stroke="#3b82f6" 
-                                                activeDot={{ r: 8 }} 
-                                                strokeWidth={2}
-                                            />
-                                        </LineChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
                 {/* Player Stats Section */}
                 <div className="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
                     <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                        <h3 className="text-lg font-medium text-gray-900 dark:text-white">Spielstatistiken</h3>
+                        <h3 className="text-lg font-medium text-gray-900 dark:text-white">Spieler- und Vereinsdaten</h3>
                     </div>
                     
                     <div className="px-6 py-4">
-                        {statsLoading ? (
-                            <p className="text-gray-600 dark:text-gray-400 text-center py-4">Lade Spielstatistiken...</p>
-                        ) : statsError ? (
+                        {statsLoading || matchesLoading ? (
+                            <p className="text-gray-600 dark:text-gray-400 text-center py-4">Lade Daten...</p>
+                        ) : statsError || matchesError ? (
                             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative dark:bg-red-900/30 dark:border-red-600 dark:text-red-300">
                                 <strong className="font-bold">Fehler!</strong>
-                                <span className="block sm:inline"> {statsError}</span>
+                                <span className="block sm:inline"> {statsError || matchesError}</span>
                             </div>
-                        ) : playerStats.length === 0 ? (
-                            <p className="text-gray-600 dark:text-gray-400 text-center py-4">Keine Spielstatistiken verfügbar.</p>
+                        ) : playerStats.length === 0 && clubMatches.length === 0 ? (
+                            <p className="text-gray-600 dark:text-gray-400 text-center py-4">Keine Daten verfügbar.</p>
                         ) : (
                             <div>
-                                {/* Diagramm für Punkteverlauf */}
-                                <div className="h-64 w-full mb-6">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart
-                                            data={playerStats
-                                                .slice()
-                                                .sort((a, b) => a.matchday - b.matchday)}
-                                            margin={{ top: 5, right: 30, left: 20, bottom: 25 }}
-                                        >
-                                            <CartesianGrid strokeDasharray="3 3" stroke="#d1d5db" />
-                                            <XAxis 
-                                                dataKey="matchday" 
-                                                tick={{ fill: '#6b7280', fontSize: 12 }}
-                                                tickMargin={10}
-                                                label={{ value: 'Spieltag', position: 'insideBottom', offset: -10 }}
-                                            />
-                                            <YAxis 
-                                                tick={{ fill: '#6b7280', fontSize: 12 }}
-                                                width={40}
-                                                domain={[0, Math.max(...playerStats.map(entry => entry.points)) + 5]}
-                                                label={{ value: 'Punkte', angle: -90, position: 'insideLeft' }}
-                                            />
-                                            <Tooltip 
-                                                formatter={(value: number) => [`${value}`, "Punkte"]}
-                                                labelFormatter={(matchday) => `Spieltag: ${matchday}`}
-                                                contentStyle={{ backgroundColor: '#f9fafb', borderRadius: '0.375rem', border: '1px solid #e5e7eb' }}
-                                            />
-                                            <Legend />
-                                            <Bar 
-                                                dataKey="points" 
-                                                name="Punkte" 
-                                                fill="#3b82f6"
-                                                radius={[4, 4, 0, 0]}
-                                            />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </div>
-                                
-                                {/* Tabelle mit Minuten pro Spieltag */}
+                                {/* Kombinierte Tabelle mit Spieler- und Vereinsdaten */}
                                 <div className="overflow-x-auto mb-6">
                                     <div className="min-w-max">
                                         <table className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -439,6 +336,181 @@ function PlayerInfoContent() {
                                                 </tr>
                                             </thead>
                                             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                                {/* Datum */}
+                                                <tr className="bg-gray-50 dark:bg-gray-700/50">
+                                                    <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10">
+                                                        Datum:
+                                                    </td>
+                                                    {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
+                                                        const matchingMatch = clubMatches.find(match => match.matchday === matchday);
+                                                        const formattedDate = matchingMatch?.match_date ? 
+                                                            new Date(matchingMatch.match_date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) : '-';
+                                                        return (
+                                                            <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">
+                                                                {formattedDate}
+                                                            </td>
+                                                        );
+                                                    })}
+                                                </tr>
+                                                
+                                                {/* Heim/Auswärts */}
+                                                <tr>
+                                                    <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10">
+                                                        Place:
+                                                    </td>
+                                                    {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
+                                                        const matchingMatch = clubMatches.find(match => match.matchday === matchday);
+                                                        
+                                                        const playerTeamId = String(teamId);
+                                                        const homeClubId = String(matchingMatch?.home_club_id || '');
+                                                        const isHome = playerTeamId === homeClubId;
+                                                        
+                                                        return (
+                                                            <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">
+                                                                {matchingMatch ? (isHome ? 'H' : 'A') : '-'}
+                                                            </td>
+                                                        );
+                                                    })}
+                                                </tr>
+                                                
+                                                {/* Gegner */}
+                                                <tr className="bg-gray-50 dark:bg-gray-700/50">
+                                                    <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10">
+                                                        Gegner:
+                                                    </td>
+                                                    {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
+                                                        const matchingMatch = clubMatches.find(match => match.matchday === matchday);
+                                                        if (!matchingMatch) return <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">-</td>;
+                                                        
+                                                        const playerTeamId = String(teamId);
+                                                        const homeClubId = String(matchingMatch.home_club_id || '');
+                                                        const isHome = playerTeamId === homeClubId;
+                                                        
+                                                        const opponentShortname = isHome ? 
+                                                            matchingMatch.away_club_shortname : 
+                                                            matchingMatch.home_club_shortname;
+                                                        
+                                                        return (
+                                                            <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">
+                                                                {opponentShortname || '-'}
+                                                            </td>
+                                                        );
+                                                    })}
+                                                </tr>
+                                                
+                                                {/* Ergebnis */}
+                                                <tr>
+                                                    <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10">
+                                                        Ergebnis:
+                                                    </td>
+                                                    {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
+                                                        const matchingMatch = clubMatches.find(match => match.matchday === matchday);
+                                                        return (
+                                                            <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">
+                                                                {matchingMatch ? `${matchingMatch.home_score}:${matchingMatch.away_score}` : '-'}
+                                                            </td>
+                                                        );
+                                                    })}
+                                                </tr>
+                                                
+                                                {/* W/D/L */}
+                                                <tr className="bg-gray-50 dark:bg-gray-700/50">
+                                                    <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10">
+                                                        W/D/L:
+                                                    </td>
+                                                    {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
+                                                        const matchingMatch = clubMatches.find(match => match.matchday === matchday);
+                                                        if (!matchingMatch) return <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">-</td>;
+                                                        
+                                                        const playerTeamId = String(teamId);
+                                                        const homeClubId = String(matchingMatch.home_club_id || '');
+                                                        const isHome = playerTeamId === homeClubId;
+                                                        
+                                                        let result = 'D';
+                                                        const homeScore = matchingMatch.home_score;
+                                                        const awayScore = matchingMatch.away_score;
+                                                        
+                                                        if (homeScore > awayScore) {
+                                                            result = isHome ? 'W' : 'L';
+                                                        } else if (homeScore < awayScore) {
+                                                            result = isHome ? 'L' : 'W';
+                                                        }
+                                                        
+                                                        let resultClass = "text-yellow-500 dark:text-yellow-400 font-medium";
+                                                        if (result === 'W') {
+                                                            resultClass = "text-green-600 dark:text-green-400 font-bold";
+                                                        } else if (result === 'L') {
+                                                            resultClass = "text-red-600 dark:text-red-400 font-medium";
+                                                        }
+                                                        
+                                                        return (
+                                                            <td key={matchday} className={`px-3 py-2 text-center text-sm ${resultClass}`}>
+                                                                {result}
+                                                            </td>
+                                                        );
+                                                    })}
+                                                </tr>
+                                                
+                                                {/* Punkte */}
+                                                <tr className="bg-gray-50 dark:bg-gray-700/50">
+                                                    <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10">
+                                                        Punkte:
+                                                    </td>
+                                                    {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
+                                                        const matchingStat = playerStats.find(stat => stat.matchday === matchday);
+                                                        
+                                                        // Definiere eine CSS-Klasse basierend auf der Punktzahl
+                                                        let pointClass = "text-gray-500 dark:text-gray-400";
+                                                        if (matchingStat && matchingStat.points > 0) {
+                                                            pointClass = "text-green-600 dark:text-green-400 font-medium";
+                                                        } else if (matchingStat && matchingStat.points < 0) {
+                                                            pointClass = "text-red-600 dark:text-red-400 font-medium";
+                                                        }
+                                                        
+                                                        return (
+                                                            <td key={matchday} className={`px-3 py-2 text-center text-sm ${pointClass}`}>
+                                                                {matchingStat ? matchingStat.points : '-'}
+                                                            </td>
+                                                        );
+                                                    })}
+                                                </tr>
+                                                
+                                                {/* Marktwert */}
+                                                <tr>
+                                                    <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10">
+                                                        Marktwert:
+                                                    </td>
+                                                    {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
+                                                        const matchingMatch = clubMatches.find(match => match.matchday === matchday);
+                                                        if (!matchingMatch) return <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">-</td>;
+                                                        
+                                                        // Finde die Werthistorie mit dem nächstliegenden Datum zum Spieltagsdatum
+                                                        const matchDate = new Date(matchingMatch.match_date);
+                                                        let closestValueEntry: ValueHistory | null = null;
+                                                        let minDaysDiff = Infinity;
+                                                        
+                                                        valueHistory.forEach(entry => {
+                                                            const entryDate = new Date(entry.date);
+                                                            const daysDiff = Math.abs(matchDate.getTime() - entryDate.getTime()) / (1000 * 60 * 60 * 24);
+                                                            
+                                                            // Wir suchen den nächsten Wert, bevorzugt vor dem Spieltag (aber max. 7 Tage davor)
+                                                            if (daysDiff < minDaysDiff && (entryDate <= matchDate || daysDiff <= 7)) {
+                                                                minDaysDiff = daysDiff;
+                                                                closestValueEntry = entry;
+                                                            }
+                                                        });
+                                                        
+                                                        return (
+                                                            <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">
+                                                                {closestValueEntry && 'value' in closestValueEntry ? 
+                                                                    formatCurrency(closestValueEntry.value).replace('€', '').trim() + '€' : 
+                                                                    '-'}
+                                                            </td>
+                                                        );
+                                                    })}
+                                                </tr>
+                                                
+                                                {/* Minuten */}
                                                 <tr>
                                                     <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10">
                                                         Min:
@@ -452,6 +524,8 @@ function PlayerInfoContent() {
                                                         );
                                                     })}
                                                 </tr>
+                                                
+                                                {/* Note */}
                                                 <tr className="bg-gray-50 dark:bg-gray-700/50">
                                                     <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10">
                                                         Note:
@@ -467,6 +541,8 @@ function PlayerInfoContent() {
                                                         );
                                                     })}
                                                 </tr>
+                                                
+                                                {/* Startelf */}
                                                 <tr>
                                                     <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10">
                                                         S11:
@@ -480,6 +556,8 @@ function PlayerInfoContent() {
                                                         );
                                                     })}
                                                 </tr>
+                                                
+                                                {/* Status */}
                                                 <tr className="bg-gray-50 dark:bg-gray-700/50">
                                                     <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10">
                                                         Status:
@@ -501,6 +579,8 @@ function PlayerInfoContent() {
                                                         );
                                                     })}
                                                 </tr>
+                                                
+                                                {/* Tore */}
                                                 <tr>
                                                     <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10">
                                                         Tore:
@@ -514,6 +594,8 @@ function PlayerInfoContent() {
                                                         );
                                                     })}
                                                 </tr>
+                                                
+                                                {/* Assists */}
                                                 <tr className="bg-gray-50 dark:bg-gray-700/50">
                                                     <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10">
                                                         Assists:
@@ -527,6 +609,8 @@ function PlayerInfoContent() {
                                                         );
                                                     })}
                                                 </tr>
+                                                
+                                                {/* Forecast */}
                                                 <tr>
                                                     <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10">
                                                         Forecast:
@@ -540,8 +624,10 @@ function PlayerInfoContent() {
                                                         );
                                                     })}
                                                 </tr>
-                                                <tr>
-                                                    <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10">
+                                                
+                                                {/* Gelbe Karten */}
+                                                <tr className="bg-gray-50 dark:bg-gray-700/50">
+                                                    <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10">
                                                         Gelb:
                                                     </td>
                                                     {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
@@ -557,8 +643,10 @@ function PlayerInfoContent() {
                                                         );
                                                     })}
                                                 </tr>
-                                                <tr className="bg-gray-50 dark:bg-gray-700/50">
-                                                    <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10">
+                                                
+                                                {/* Rote Karten */}
+                                                <tr>
+                                                    <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10">
                                                         Rot:
                                                     </td>
                                                     {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
@@ -574,6 +662,51 @@ function PlayerInfoContent() {
                                                         );
                                                     })}
                                                 </tr>
+                                                
+                                                {/* Heim-Wahrscheinlichkeit */}
+                                                <tr className="bg-gray-50 dark:bg-gray-700/50">
+                                                    <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10">
+                                                        Heim-W:
+                                                    </td>
+                                                    {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
+                                                        const matchingMatch = clubMatches.find(match => match.matchday === matchday);
+                                                        return (
+                                                            <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">
+                                                                {matchingMatch ? `${(matchingMatch.home_probabilities * 100).toFixed(1)}%` : '-'}
+                                                            </td>
+                                                        );
+                                                    })}
+                                                </tr>
+                                                
+                                                {/* Unentschieden-Wahrscheinlichkeit */}
+                                                <tr>
+                                                    <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10">
+                                                        Unentschieden:
+                                                    </td>
+                                                    {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
+                                                        const matchingMatch = clubMatches.find(match => match.matchday === matchday);
+                                                        return (
+                                                            <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">
+                                                                {matchingMatch ? `${(matchingMatch.draw_probabilities * 100).toFixed(1)}%` : '-'}
+                                                            </td>
+                                                        );
+                                                    })}
+                                                </tr>
+                                                
+                                                {/* Auswärts-Wahrscheinlichkeit */}
+                                                <tr className="bg-gray-50 dark:bg-gray-700/50">
+                                                    <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10">
+                                                        Auswärts-W:
+                                                    </td>
+                                                    {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
+                                                        const matchingMatch = clubMatches.find(match => match.matchday === matchday);
+                                                        return (
+                                                            <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">
+                                                                {matchingMatch ? `${(matchingMatch.away_probabilities * 100).toFixed(1)}%` : '-'}
+                                                            </td>
+                                                        );
+                                                    })}
+                                                </tr>
                                             </tbody>
                                         </table>
                                     </div>
@@ -583,271 +716,114 @@ function PlayerInfoContent() {
                     </div>
                 </div>
                 
-                {/* Club Matches Section */}
+                {/* Diagramme Section */}
                 <div className="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
                     <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                        <h3 className="text-lg font-medium text-gray-900 dark:text-white">Vereinsspiele</h3>
+                        <h3 className="text-lg font-medium text-gray-900 dark:text-white">Diagramme</h3>
                     </div>
                     
                     <div className="px-6 py-4">
-                        {matchesLoading ? (
-                            <p className="text-gray-600 dark:text-gray-400 text-center py-4">Lade Vereinsspiele...</p>
-                        ) : matchesError ? (
+                        {(isLoading || statsLoading) ? (
+                            <p className="text-gray-600 dark:text-gray-400 text-center py-4">Lade Diagrammdaten...</p>
+                        ) : (error || statsError) ? (
                             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative dark:bg-red-900/30 dark:border-red-600 dark:text-red-300">
                                 <strong className="font-bold">Fehler!</strong>
-                                <span className="block sm:inline"> {matchesError}</span>
+                                <span className="block sm:inline"> {error || statsError}</span>
                             </div>
-                        ) : clubMatches.length === 0 ? (
-                            <p className="text-gray-600 dark:text-gray-400 text-center py-4">Keine Vereinsspiele verfügbar.</p>
+                        ) : (valueHistory.length === 0 && playerStats.length === 0) ? (
+                            <p className="text-gray-600 dark:text-gray-400 text-center py-4">Keine Diagrammdaten verfügbar.</p>
                         ) : (
-                            <div className="overflow-x-auto mb-6">
-                                <div className="min-w-max">
-                                    <table className="divide-y divide-gray-200 dark:divide-gray-700">
-                                        <thead className="bg-gray-50 dark:bg-gray-700">
-                                            <tr>
-                                                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-16 sticky left-0 bg-gray-50 dark:bg-gray-700 z-10">
-                                                    MD:
-                                                </th>
-                                                {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => (
-                                                    <th key={matchday} scope="col" className="px-3 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                                        {matchday}
-                                                    </th>
-                                                ))}
-                                            </tr>
-                                        </thead>
-                                        <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                                            {/* Datum */}
-                                            <tr className="bg-gray-50 dark:bg-gray-700/50">
-                                                <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10">
-                                                    Datum:
-                                                </td>
-                                                {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
-                                                    const matchingMatch = clubMatches.find(match => match.matchday === matchday);
-                                                    const formattedDate = matchingMatch?.match_date ? 
-                                                        new Date(matchingMatch.match_date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) : '-';
-                                                    return (
-                                                        <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">
-                                                            {formattedDate}
-                                                        </td>
-                                                    );
-                                                })}
-                                            </tr>
-                                            
-                                            {/* Place (Heim/Auswärts) */}
-                                            <tr>
-                                                <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10">
-                                                    Place:
-                                                </td>
-                                                {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
-                                                    const matchingMatch = clubMatches.find(match => match.matchday === matchday);
-                                                    // Debug-Ausgabe für den ersten Eintrag
-                                                    if (matchingMatch && matchday === 1) {
-                                                        console.log('Vergleiche für Spieltag 1:');
-                                                        console.log('teamId:', teamId, 'Typ:', typeof teamId);
-                                                        console.log('home_club_id:', matchingMatch.home_club_id, 'Typ:', typeof matchingMatch.home_club_id);
-                                                    }
-                                                    
-                                                    // Stelle sicher, dass beide als Strings verglichen werden
-                                                    const playerTeamId = String(teamId);
-                                                    const homeClubId = String(matchingMatch?.home_club_id || '');
-                                                    const isHome = playerTeamId === homeClubId;
-                                                    
-                                                    return (
-                                                        <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">
-                                                            {matchingMatch ? (isHome ? 'H' : 'A') : '-'}
-                                                        </td>
-                                                    );
-                                                })}
-                                            </tr>
-                                            
-                                            {/* Gegner-ID */}
-                                            {/* 
-                                            <tr className="bg-gray-50 dark:bg-gray-700/50">
-                                                <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10">
-                                                    Gegner-ID:
-                                                </td>
-                                                {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
-                                                    const matchingMatch = clubMatches.find(match => match.matchday === matchday);
-                                                    // Stelle sicher, dass beide als Strings verglichen werden
-                                                    const playerTeamId = String(teamId);
-                                                    const homeClubId = String(matchingMatch?.home_club_id || '');
-                                                    const isHome = playerTeamId === homeClubId;
-                                                    
-                                                    // Bestimme die Gegner-ID basierend darauf, ob der Spieler im Heim- oder Auswärtsteam ist
-                                                    const opponentId = matchingMatch ? 
-                                                        (isHome ? matchingMatch.away_club_id : matchingMatch.home_club_id) : '-';
-                                                    
-                                                    return (
-                                                        <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">
-                                                            {opponentId}
-                                                        </td>
-                                                    );
-                                                })}
-                                            </tr>
-                                            */}
-                                            
-                                            {/* Gegner Name */}
-                                            <tr className="bg-gray-50 dark:bg-gray-700/50">
-                                                <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10">
-                                                    Gegner:
-                                                </td>
-                                                {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
-                                                    const matchingMatch = clubMatches.find(match => match.matchday === matchday);
-                                                    if (!matchingMatch) return <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">-</td>;
-                                                    
-                                                    const playerTeamId = String(teamId);
-                                                    const homeClubId = String(matchingMatch.home_club_id || '');
-                                                    const isHome = playerTeamId === homeClubId;
-                                                    
-                                                    // Bestimme den Kurznamen des Gegners
-                                                    const opponentShortname = isHome ? 
-                                                        matchingMatch.away_club_shortname : 
-                                                        matchingMatch.home_club_shortname;
-                                                    
-                                                    return (
-                                                        <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">
-                                                            {opponentShortname || '-'}
-                                                        </td>
-                                                    );
-                                                })}
-                                            </tr>
-                                            
-                                            {/* Ergebnis (W/D/L) */}
-                                            <tr>
-                                                <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10">
-                                                    W/D/L:
-                                                </td>
-                                                {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
-                                                    const matchingMatch = clubMatches.find(match => match.matchday === matchday);
-                                                    if (!matchingMatch) return <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">-</td>;
-                                                    
-                                                    const playerTeamId = String(teamId);
-                                                    const homeClubId = String(matchingMatch.home_club_id || '');
-                                                    const isHome = playerTeamId === homeClubId;
-                                                    
-                                                    // Bestimme das Ergebnis aus Sicht des Spielers
-                                                    let result = 'D'; // Unentschieden als Standard
-                                                    const homeScore = matchingMatch.home_score;
-                                                    const awayScore = matchingMatch.away_score;
-                                                    
-                                                    if (homeScore > awayScore) {
-                                                        // Heimteam hat gewonnen
-                                                        result = isHome ? 'W' : 'L';
-                                                    } else if (homeScore < awayScore) {
-                                                        // Auswärtsteam hat gewonnen
-                                                        result = isHome ? 'L' : 'W';
-                                                    }
-                                                    
-                                                    // Farbcodierung für das Ergebnis
-                                                    let resultClass = "text-yellow-500 dark:text-yellow-400 font-medium"; // Unentschieden
-                                                    if (result === 'W') {
-                                                        resultClass = "text-green-600 dark:text-green-400 font-bold";
-                                                    } else if (result === 'L') {
-                                                        resultClass = "text-red-600 dark:text-red-400 font-medium";
-                                                    }
-                                                    
-                                                    return (
-                                                        <td key={matchday} className={`px-3 py-2 text-center text-sm ${resultClass}`}>
-                                                            {result}
-                                                        </td>
-                                                    );
-                                                })}
-                                            </tr>
-                                            
-                                            {/* Ergebnis (Score) */}
-                                            <tr className="bg-gray-50 dark:bg-gray-700/50">
-                                                <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10">
-                                                    Ergebnis:
-                                                </td>
-                                                {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
-                                                    const matchingMatch = clubMatches.find(match => match.matchday === matchday);
-                                                    return (
-                                                        <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">
-                                                            {matchingMatch ? `${matchingMatch.home_score}:${matchingMatch.away_score}` : '-'}
-                                                        </td>
-                                                    );
-                                                })}
-                                            </tr>
-                                            
-                                            {/* Heim Verein */}
-                                            {/*
-                                            <tr>
-                                                <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10">
-                                                    Heim:
-                                                </td>
-                                                {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
-                                                    const matchingMatch = clubMatches.find(match => match.matchday === matchday);
-                                                    return (
-                                                        <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">
-                                                            {matchingMatch ? matchingMatch.home_club_shortname : '-'}
-                                                        </td>
-                                                    );
-                                                })}
-                                            </tr>
-                                            */}
-                                            
-                                            {/* Heim ID */}
-                                            {/*
-                                            <tr className="bg-gray-50 dark:bg-gray-700/50">
-                                                <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10">
-                                                    Heim ID:
-                                                </td>
-                                                {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
-                                                    const matchingMatch = clubMatches.find(match => match.matchday === matchday);
-                                                    return (
-                                                        <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">
-                                                            {matchingMatch ? matchingMatch.home_club_id : '-'}
-                                                        </td>
-                                                    );
-                                                })}
-                                            </tr>
-                                            */}
-                                            
-                                            {/* Wahrscheinlichkeiten */}
-                                            <tr>
-                                                <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10">
-                                                    Heim-W:
-                                                </td>
-                                                {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
-                                                    const matchingMatch = clubMatches.find(match => match.matchday === matchday);
-                                                    return (
-                                                        <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">
-                                                            {matchingMatch ? `${(matchingMatch.home_probabilities * 100).toFixed(1)}%` : '-'}
-                                                        </td>
-                                                    );
-                                                })}
-                                            </tr>
-                                            
-                                            <tr className="bg-gray-50 dark:bg-gray-700/50">
-                                                <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10">
-                                                    Unentschieden:
-                                                </td>
-                                                {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
-                                                    const matchingMatch = clubMatches.find(match => match.matchday === matchday);
-                                                    return (
-                                                        <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">
-                                                            {matchingMatch ? `${(matchingMatch.draw_probabilities * 100).toFixed(1)}%` : '-'}
-                                                        </td>
-                                                    );
-                                                })}
-                                            </tr>
-                                            
-                                            <tr>
-                                                <td className="px-3 py-2 text-left text-sm font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10">
-                                                    Auswärts-W:
-                                                </td>
-                                                {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
-                                                    const matchingMatch = clubMatches.find(match => match.matchday === matchday);
-                                                    return (
-                                                        <td key={matchday} className="px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400">
-                                                            {matchingMatch ? `${(matchingMatch.away_probabilities * 100).toFixed(1)}%` : '-'}
-                                                        </td>
-                                                    );
-                                                })}
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
+                            <div>
+                                {/* Diagramm für Wertentwicklung */}
+                                {valueHistory.length > 0 && (
+                                    <div>
+                                        <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-3">Wertentwicklung</h4>
+                                        <div className="h-64 w-full mb-6">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <LineChart
+                                                    data={valueHistory
+                                                        .slice() // Kopieren des Arrays
+                                                        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()) // Nach Datum sortieren (aufsteigend)
+                                                        .map((entry: ValueHistory) => ({
+                                                            ...entry,
+                                                            formattedDate: new Date(entry.date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }),
+                                                        }))}
+                                                    margin={{ top: 5, right: 30, left: 20, bottom: 25 }}
+                                                >
+                                                    <CartesianGrid strokeDasharray="3 3" stroke="#d1d5db" />
+                                                    <XAxis 
+                                                        dataKey="formattedDate" 
+                                                        tick={{ fill: '#6b7280', fontSize: 12 }}
+                                                        tickMargin={10}
+                                                    />
+                                                    <YAxis 
+                                                        tick={{ fill: '#6b7280', fontSize: 12 }}
+                                                        tickFormatter={(value) => formatCurrency(value).replace('€', '')}
+                                                        width={60}
+                                                        domain={[0, Math.max(...valueHistory.map(entry => entry.value))]}
+                                                    />
+                                                    <Tooltip 
+                                                        formatter={(value: number) => [formatCurrency(value), "Marktwert"]}
+                                                        labelFormatter={(date) => `Datum: ${date}`}
+                                                        contentStyle={{ backgroundColor: '#f9fafb', borderRadius: '0.375rem', border: '1px solid #e5e7eb' }}
+                                                    />
+                                                    <Legend />
+                                                    <Line 
+                                                        type="monotone" 
+                                                        dataKey="value" 
+                                                        name="Marktwert" 
+                                                        stroke="#3b82f6" 
+                                                        activeDot={{ r: 8 }} 
+                                                        strokeWidth={2}
+                                                    />
+                                                </LineChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    </div>
+                                )}
+                                
+                                {/* Diagramm für Punkteverlauf */}
+                                {playerStats.length > 0 && (
+                                    <div>
+                                        <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-3">Punkteverlauf</h4>
+                                        <div className="h-64 w-full mb-6">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <BarChart
+                                                    data={playerStats
+                                                        .slice()
+                                                        .sort((a, b) => a.matchday - b.matchday)}
+                                                    margin={{ top: 5, right: 30, left: 20, bottom: 25 }}
+                                                >
+                                                    <CartesianGrid strokeDasharray="3 3" stroke="#d1d5db" />
+                                                    <XAxis 
+                                                        dataKey="matchday" 
+                                                        tick={{ fill: '#6b7280', fontSize: 12 }}
+                                                        tickMargin={10}
+                                                        label={{ value: 'Spieltag', position: 'insideBottom', offset: -10 }}
+                                                    />
+                                                    <YAxis 
+                                                        tick={{ fill: '#6b7280', fontSize: 12 }}
+                                                        width={40}
+                                                        domain={[0, Math.max(...playerStats.map(entry => entry.points)) + 5]}
+                                                        label={{ value: 'Punkte', angle: -90, position: 'insideLeft' }}
+                                                    />
+                                                    <Tooltip 
+                                                        formatter={(value: number) => [`${value}`, "Punkte"]}
+                                                        labelFormatter={(matchday) => `Spieltag: ${matchday}`}
+                                                        contentStyle={{ backgroundColor: '#f9fafb', borderRadius: '0.375rem', border: '1px solid #e5e7eb' }}
+                                                    />
+                                                    <Legend />
+                                                    <Bar 
+                                                        dataKey="points" 
+                                                        name="Punkte" 
+                                                        fill="#3b82f6"
+                                                        radius={[4, 4, 0, 0]}
+                                                    />
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
