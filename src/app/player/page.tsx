@@ -403,67 +403,13 @@ function PlayerInfoContent() {
                             ) : (
                                 <table className="divide-y divide-gray-200 dark:divide-gray-700 w-full">
                                     <thead className="bg-gray-50 dark:bg-gray-700">
-                                        {/* -------- START: Integrierte Visualisierung (JETZT ZUERST) -------- */}
-                                        <tr className="bg-gray-100 dark:bg-gray-750 border-b border-gray-300 dark:border-gray-600">
-                                            {/* Sticky Header für die Grafik-Zeile */}
-                                            <td className="px-3 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 sticky left-0 bg-gray-100 dark:bg-gray-750 z-20 align-top w-24"> {/* Breite wie MD-Header, sticky, z-index, align-top */}
-                                                Grafik:
-                                            </td>
-                                            {/* Visualisierungszellen */}
-                                            {combinedMatchdayData.map(({ matchday, points, marketValue }) => {
-                                                const pointsHeight = calculateVizHeight(points, maxPoints, minPoints);
-                                                const mvHeight = calculateVizHeight(marketValue, maxMarketValue, 0);
-                                                const range = maxPoints - minPoints;
-                                                const zeroLinePercent = range > 0 ? Math.max(0, Math.min(100, (0 - minPoints) / range * 100)) : 50;
-                                                const isNegativePoints = points !== null && points < 0;
-
-                                                return (
-                                                    <td key={`viz-${matchday}`} className="px-1 py-2 text-center align-bottom h-80 relative border-r border-gray-200 dark:border-gray-700 w-16"> {/* Feste Höhe HIER, feste Breite */}
-                                                        {/* Container für Bars */}
-                                                        <div className="w-full h-full flex justify-center items-end space-x-px">
-                                                             {/* Marktwert Balken (Grün) */}
-                                                             {marketValue !== null && (
-                                                                <div
-                                                                    className="bg-green-500 hover:bg-green-400 w-2"
-                                                                    style={{ height: `${mvHeight}%` }}
-                                                                    title={`MW: ${formatCurrency(marketValue ?? 0)}`} // Handle null case for title
-                                                                ></div>
-                                                             )}
-                                                             {/* Punkte Balken (Blau für +, Rot für -) */}
-                                                             {points !== null && (
-                                                                  <div
-                                                                    className={`${isNegativePoints ? 'bg-red-500 hover:bg-red-400' : 'bg-blue-500 hover:bg-blue-400'} w-2`}
-                                                                    style={{
-                                                                        height: `${calculateVizHeight(Math.abs(points ?? 0), Math.max(Math.abs(maxPoints), Math.abs(minPoints)))}%`,
-                                                                    }}
-                                                                    title={`Punkte: ${points}`}
-                                                                ></div>
-                                                             )}
-                                                        </div>
-                                                         {/* Text Labels Oben */}
-                                                         <div className="absolute top-0 left-0 right-0 px-1 text-center pointer-events-none">
-                                                             <div className={`text-xs ${points !== null && points < 0 ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400' } whitespace-nowrap`}>
-                                                                 {points ?? '-'}
-                                                             </div>
-                                                             <div className="text-[10px] text-green-700 dark:text-green-400 whitespace-nowrap truncate">
-                                                                 {marketValue !== null ? (formatCurrency(marketValue).replace('€', '').replace('.000', 'k').replace('.',',')) : '-'}
-                                                             </div>
-                                                         </div>
-                                                    </td>
-                                                );
-                                            })}
-                                        </tr>
-                                        {/* -------- END: Integrierte Visualisierung -------- */}
-
-                                        {/* Header Row for Matchday Numbers (JETZT ZWEITENS) */}
+                                        {/* MD Header */}
                                         <tr>
-                                            {/* Sticky Header für die MD-Zeile */}
-                                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-24 sticky left-0 bg-gray-50 dark:bg-gray-700 z-20"> {/* Sticky, z-index */}
+                                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-24 sticky left-0 bg-gray-50 dark:bg-gray-700 z-20">
                                                 MD:
                                             </th>
-                                            {/* Spieltag Nummern Header */}
                                             {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => (
-                                                <th key={matchday} scope="col" className="px-3 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-16"> {/* Feste Breite */}
+                                                <th key={matchday} scope="col" className="px-3 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-16">
                                                     {matchday}
                                                 </th>
                                             ))}
@@ -479,15 +425,20 @@ function PlayerInfoContent() {
                                                 return (<td key={matchday} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{formattedDate}</td>);
                                             })}
                                         </tr>
-                                        {/* Place */}
+
+                                        {/* W/D/L */}
                                         <tr>
-                                            <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10 w-24">Place:</td>
+                                            <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10 w-24">W/D/L:</td>
                                             {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
                                                 const matchingMatch = clubMatches.find(match => match.matchday === matchday);
-                                                const isHome = matchingMatch ? String(teamId) === String(matchingMatch.home_club_id) : null;
-                                                return (<td key={matchday} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{matchingMatch ? (isHome ? 'H' : 'A') : '-'}</td>);
+                                                if (!matchingMatch) return <td key={matchday} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">-</td>;
+                                                const isHome = String(teamId) === String(matchingMatch.home_club_id);
+                                                let result = 'D'; const hs = matchingMatch.home_score; const as = matchingMatch.away_score; if (hs > as) { result = isHome ? 'W' : 'L'; } else if (hs < as) { result = isHome ? 'L' : 'W'; }
+                                                let rc = "text-yellow-500 dark:text-yellow-400 font-medium"; if (result === 'W') { rc = "text-green-600 dark:text-green-400 font-bold"; } else if (result === 'L') { rc = "text-red-600 dark:text-red-400 font-medium"; }
+                                                return <td key={matchday} className={`px-3 py-2 text-center text-xs ${rc} w-16`}>{result}</td>;
                                             })}
                                         </tr>
+
                                         {/* Gegner */}
                                         <tr className="bg-gray-50 dark:bg-gray-700/50">
                                             <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10 w-24">Gegner:</td>
@@ -499,6 +450,7 @@ function PlayerInfoContent() {
                                                 return (<td key={matchday} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{opponentShortname || '-'}</td>);
                                             })}
                                         </tr>
+
                                         {/* Ergebnis */}
                                         <tr>
                                             <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10 w-24">Ergebnis:</td>
@@ -507,46 +459,112 @@ function PlayerInfoContent() {
                                                 return (<td key={matchday} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{matchingMatch ? `${matchingMatch.home_score}:${matchingMatch.away_score}` : '-'}</td>);
                                             })}
                                         </tr>
-                                        {/* W/D/L */}
+
+                                        {/* Place */}
                                         <tr className="bg-gray-50 dark:bg-gray-700/50">
-                                            <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10 w-24">W/D/L:</td>
+                                            <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10 w-24">Place:</td>
                                             {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => {
                                                 const matchingMatch = clubMatches.find(match => match.matchday === matchday);
-                                                if (!matchingMatch) return <td key={matchday} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">-</td>;
-                                                const isHome = String(teamId) === String(matchingMatch.home_club_id);
-                                                let result = 'D'; const hs = matchingMatch.home_score; const as = matchingMatch.away_score; if (hs > as) { result = isHome ? 'W' : 'L'; } else if (hs < as) { result = isHome ? 'L' : 'W'; }
-                                                let rc = "text-yellow-500 dark:text-yellow-400 font-medium"; if (result === 'W') { rc = "text-green-600 dark:text-green-400 font-bold"; } else if (result === 'L') { rc = "text-red-600 dark:text-red-400 font-medium"; }
-                                                return <td key={matchday} className={`px-3 py-2 text-center text-xs ${rc} w-16`}>{result}</td>;
+                                                const isHome = matchingMatch ? String(teamId) === String(matchingMatch.home_club_id) : null;
+                                                return (<td key={matchday} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{matchingMatch ? (isHome ? 'H' : 'A') : '-'}</td>);
                                             })}
                                         </tr>
+
+                                        {/* Grafik */}
+                                        <tr className="bg-gray-100 dark:bg-gray-750 border-b border-gray-300 dark:border-gray-600">
+                                            <td className="px-3 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 sticky left-0 bg-gray-100 dark:bg-gray-750 z-20 align-top w-24">
+                                                Grafik:
+                                            </td>
+                                            {combinedMatchdayData.map(({ matchday, points, marketValue }) => {
+                                                const pointsHeight = calculateVizHeight(points, maxPoints, minPoints);
+                                                const mvHeight = calculateVizHeight(marketValue, maxMarketValue, 0);
+                                                const range = maxPoints - minPoints;
+                                                const zeroLinePercent = range > 0 ? Math.max(0, Math.min(100, (0 - minPoints) / range * 100)) : 50;
+                                                const isNegativePoints = points !== null && points < 0;
+
+                                                return (
+                                                    <td key={`viz-${matchday}`} className="px-1 py-2 text-center align-bottom h-80 relative border-r border-gray-200 dark:border-gray-700 w-16">
+                                                        <div className="w-full h-full flex justify-center items-end space-x-px">
+                                                            {marketValue !== null && (
+                                                                <div
+                                                                    className="bg-green-500 hover:bg-green-400 w-2"
+                                                                    style={{ height: `${mvHeight}%` }}
+                                                                    title={`MW: ${formatCurrency(marketValue ?? 0)}`}
+                                                                ></div>
+                                                            )}
+                                                            {points !== null && (
+                                                                <div
+                                                                    className={`${isNegativePoints ? 'bg-red-500 hover:bg-red-400' : 'bg-blue-500 hover:bg-blue-400'} w-2`}
+                                                                    style={{
+                                                                        height: `${calculateVizHeight(Math.abs(points ?? 0), Math.max(Math.abs(maxPoints), Math.abs(minPoints)))}%`,
+                                                                    }}
+                                                                    title={`Punkte: ${points}`}
+                                                                ></div>
+                                                            )}
+                                                        </div>
+                                                        <div className="absolute top-0 left-0 right-0 px-1 text-center pointer-events-none">
+                                                            <div className={`text-xs ${points !== null && points < 0 ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400' } whitespace-nowrap`}>
+                                                                {points ?? '-'}
+                                                            </div>
+                                                            <div className="text-[10px] text-green-700 dark:text-green-400 whitespace-nowrap truncate">
+                                                                {marketValue !== null ? (formatCurrency(marketValue).replace('€', '').replace('.000', 'k').replace('.',',')) : '-'}
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                );
+                                            })}
+                                        </tr>
+
                                         {/* Punkte */}
-                                        <tr className="bg-gray-50 dark:bg-gray-700/50">
-                                             <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10 w-24">Punkte:</td>
-                                             {combinedMatchdayData.map(({ matchday, points }) => {
-                                                 let pc = "text-gray-500 dark:text-gray-400"; if (points !== null && points > 0) pc = "text-green-600 dark:text-green-400 font-medium"; else if (points !== null && points < 0) pc = "text-red-600 dark:text-red-400 font-medium";
-                                                 return (<td key={`pts-data-${matchday}`} className={`px-3 py-2 text-center text-xs ${pc} w-16`}>{points ?? '-'}</td>);
-                                             })}
-                                        </tr>
-                                        {/* Marktwert */}
                                         <tr>
-                                             <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10 w-24">Marktwert:</td>
-                                             {combinedMatchdayData.map(({ matchday, marketValueFormatted }) => (<td key={`mv-data-${matchday}`} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{marketValueFormatted ? marketValueFormatted.replace(' €', '€') : '-'}</td>))}
+                                            <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10 w-24">Punkte:</td>
+                                            {combinedMatchdayData.map(({ matchday, points }) => {
+                                                let pc = "text-gray-500 dark:text-gray-400"; if (points !== null && points > 0) pc = "text-green-600 dark:text-green-400 font-medium"; else if (points !== null && points < 0) pc = "text-red-600 dark:text-red-400 font-medium";
+                                                return (<td key={`pts-data-${matchday}`} className={`px-3 py-2 text-center text-xs ${pc} w-16`}>{points ?? '-'}</td>);
+                                            })}
                                         </tr>
+
+                                        {/* Marktwert */}
+                                        <tr className="bg-gray-50 dark:bg-gray-700/50">
+                                            <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10 w-24">Marktwert:</td>
+                                            {combinedMatchdayData.map(({ matchday, marketValueFormatted }) => (<td key={`mv-data-${matchday}`} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{marketValueFormatted ? marketValueFormatted.replace(' €', '€') : '-'}</td>))}
+                                        </tr>
+
+                                        {/* Diff */}
+                                        <tr>
+                                            <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10 w-24">Diff:</td>
+                                            {combinedMatchdayData.map(({ matchday, marketValue }, index) => {
+                                                const prevMarketValue = index > 0 ? combinedMatchdayData[index - 1].marketValue : null;
+                                                const diff = marketValue !== null && prevMarketValue !== null ? marketValue - prevMarketValue : null;
+                                                const diffFormatted = diff !== null ? formatCurrency(diff).replace('€', '€') : '-';
+                                                const diffColor = diff !== null ? (diff > 0 ? 'text-green-600 dark:text-green-400' : diff < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400') : 'text-gray-500 dark:text-gray-400';
+                                                
+                                                return (
+                                                    <td key={`diff-${matchday}`} className={`px-3 py-2 text-center text-xs ${diffColor} w-16`}>
+                                                        {diffFormatted}
+                                                    </td>
+                                                );
+                                            })}
+                                        </tr>
+
+                                        {/* Note */}
+                                        <tr>
+                                            <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10 w-24">Note:</td>
+                                            {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => { const s = playerStats.find(stat => stat.matchday === matchday); const n = s?.liga_note; return <td key={matchday} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{n !== null && !isNaN(Number(n)) ? Number(n).toFixed(1) : '-'}</td>; })}
+                                        </tr>
+
+                                        {/* S11 */}
+                                        <tr className="bg-gray-50 dark:bg-gray-700/50">
+                                            <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10 w-24">S11:</td>
+                                            {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => { const s = playerStats.find(stat => stat.matchday === matchday); return <td key={matchday} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{s ? (s.started ? '✓' : '✗') : '-'}</td>; })}
+                                        </tr>
+
                                         {/* Minuten */}
                                         <tr>
                                             <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10 w-24">Min:</td>
                                             {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => { const s = playerStats.find(stat => stat.matchday === matchday); return <td key={matchday} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{s ? s.minutes : '0'}</td>; })}
                                         </tr>
-                                        {/* Note */}
-                                        <tr className="bg-gray-50 dark:bg-gray-700/50">
-                                            <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10 w-24">Note:</td>
-                                            {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => { const s = playerStats.find(stat => stat.matchday === matchday); const n = s?.liga_note; return <td key={matchday} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{n !== null && !isNaN(Number(n)) ? Number(n).toFixed(1) : '-'}</td>; })}
-                                        </tr>
-                                        {/* S11 */}
-                                        <tr>
-                                            <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10 w-24">S11:</td>
-                                            {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => { const s = playerStats.find(stat => stat.matchday === matchday); return <td key={matchday} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{s ? (s.started ? '✓' : '✗') : '-'}</td>; })}
-                                        </tr>
+
                                         {/* Status */}
                                         <tr className="bg-gray-50 dark:bg-gray-700/50">
                                             <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10 w-24">Status:</td>
@@ -555,41 +573,49 @@ function PlayerInfoContent() {
                                                 return (<td key={matchday} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{s ? (s.status === 1 ? (<span className="text-red-600 dark:text-red-400" title={s.injury_text || 'Verletzt'}>⚕</span>) : s.status === 2 ? (<span className="text-yellow-600 dark:text-yellow-400" title="Fraglich">?</span>) : (<span className="text-green-600 dark:text-green-400" title="Fit">✓</span>)) : '-'}</td>);
                                             })}
                                         </tr>
+
                                         {/* Tore */}
                                         <tr>
                                             <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10 w-24">Tore:</td>
                                             {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => { const s = playerStats.find(stat => stat.matchday === matchday); return <td key={matchday} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{s && s.goals > 0 ? s.goals : '-'}</td>; })}
                                         </tr>
+
                                         {/* Assists */}
                                         <tr className="bg-gray-50 dark:bg-gray-700/50">
                                             <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10 w-24">Assists:</td>
                                             {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => { const s = playerStats.find(stat => stat.matchday === matchday); return <td key={matchday} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{s && s.assist > 0 ? s.assist : '-'}</td>; })}
                                         </tr>
+
+                                        {/* Gelb */}
+                                        <tr>
+                                            <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10 w-24">Gelb:</td>
+                                            {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => { const s = playerStats.find(stat => stat.matchday === matchday); return (<td key={matchday} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{s && s.yellow > 0 ? (<span className="inline-flex items-center justify-center w-4 h-4 bg-yellow-400 rounded-sm text-[10px] text-gray-900">{s.yellow}</span>) : '-'}</td>); })}
+                                        </tr>
+
+                                        {/* Rot */}
+                                        <tr className="bg-gray-50 dark:bg-gray-700/50">
+                                            <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10 w-24">Rot:</td>
+                                            {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => { const s = playerStats.find(stat => stat.matchday === matchday); return (<td key={matchday} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{s && s.red > 0 ? (<span className="inline-flex items-center justify-center w-4 h-4 bg-red-600 rounded-sm text-[10px] text-white">{s.red}</span>) : '-'}</td>); })}
+                                        </tr>
+
                                         {/* Forecast */}
                                         <tr>
                                             <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10 w-24">Forecast:</td>
                                             {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => { const s = playerStats.find(stat => stat.matchday === matchday); return <td key={matchday} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{s && s.forecast !== null ? s.forecast : '-'}</td>; })}
                                         </tr>
-                                        {/* Gelb */}
-                                        <tr className="bg-gray-50 dark:bg-gray-700/50">
-                                            <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10 w-24">Gelb:</td>
-                                            {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => { const s = playerStats.find(stat => stat.matchday === matchday); return (<td key={matchday} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{s && s.yellow > 0 ? (<span className="inline-flex items-center justify-center w-4 h-4 bg-yellow-400 rounded-sm text-[10px] text-gray-900">{s.yellow}</span>) : '-'}</td>); })}
-                                        </tr>
-                                        {/* Rot */}
-                                        <tr>
-                                            <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10 w-24">Rot:</td>
-                                            {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => { const s = playerStats.find(stat => stat.matchday === matchday); return (<td key={matchday} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{s && s.red > 0 ? (<span className="inline-flex items-center justify-center w-4 h-4 bg-red-600 rounded-sm text-[10px] text-white">{s.red}</span>) : '-'}</td>); })}
-                                        </tr>
+
                                         {/* Heim-W */}
                                         <tr className="bg-gray-50 dark:bg-gray-700/50">
                                             <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10 w-24">Heim-W:</td>
                                             {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => { const m = clubMatches.find(match => match.matchday === matchday); return (<td key={matchday} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{m ? `${(m.home_probabilities * 100).toFixed(0)}%` : '-'}</td>); })}
                                         </tr>
+
                                         {/* Unentschieden */}
                                         <tr>
                                             <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10 w-24">Unentsch.:</td>
                                             {Array.from({ length: 34 }, (_, i) => i + 1).map((matchday) => { const m = clubMatches.find(match => match.matchday === matchday); return (<td key={matchday} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{m ? `${(m.draw_probabilities * 100).toFixed(0)}%` : '-'}</td>); })}
                                         </tr>
+
                                         {/* Auswärts-W */}
                                         <tr className="bg-gray-50 dark:bg-gray-700/50">
                                             <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10 w-24">Auswärts-W:</td>
@@ -598,23 +624,9 @@ function PlayerInfoContent() {
                                     </tbody>
                                 </table>
                             )}
-                        </div> {/* Ende min-w-max */}
-                    </div> {/* Ende overflow-x-auto */}
-                </div> {/* Ende Stats Section */}
-
-                {/* Diagramme Section kann entfernt oder für andere Diagramme behalten werden */}
-                {/*
-                <div className="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-                    <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                        <h3 className="text-lg font-medium text-gray-900 dark:text-white">Zusätzliche Diagramme</h3>
-                    </div>
-                    <div className="px-6 py-4">
-                         Hier könnten weiterhin die alten Recharts-Diagramme angezeigt werden, falls gewünscht
-                         {(isLoading || statsLoading) ? <p>Lade...</p> : (error || statsError) ? <p>Fehler...</p> : (...)}
+                        </div>
                     </div>
                 </div>
-                */}
-
             </main>
         </div>
     );
