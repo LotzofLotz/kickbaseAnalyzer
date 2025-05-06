@@ -364,30 +364,6 @@ const RenderTableBodyRows: React.FC<RenderTableBodyRowsProps> = ({
                 <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10 w-24">Rot:</td>
                 {matchdaysToDisplay.map((matchday) => { const s = playerStats.find(stat => stat.matchday === matchday); return (<td key={`red-${matchday}`} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{s && s.red > 0 ? (<span className="inline-flex items-center justify-center w-4 h-4 bg-red-600 rounded-sm text-[10px] text-white">{s.red}</span>) : '-'}</td>); })}
             </tr>
-
-            {/* Forecast */}
-            <tr className="bg-gray-50 dark:bg-gray-700/50">
-                <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10 w-24">Forecast:</td>
-                {matchdaysToDisplay.map((matchday) => { const s = playerStats.find(stat => stat.matchday === matchday); return <td key={`forecast-${matchday}`} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{s && s.forecast !== null ? s.forecast : '-'}</td>; })}
-            </tr>
-
-            {/* Heim-W */}
-            <tr>
-                <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10 w-24">Heim-W:</td>
-                {matchdaysToDisplay.map((matchday) => { const m = clubMatches.find(match => match.matchday === matchday); return (<td key={`homep-${matchday}`} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{m ? `${(m.home_probabilities * 100).toFixed(0)}%` : '-'}</td>); })}
-            </tr>
-
-            {/* Unentschieden */}
-            <tr className="bg-gray-50 dark:bg-gray-700/50">
-                <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10 w-24">Unentsch.:</td>
-                {matchdaysToDisplay.map((matchday) => { const m = clubMatches.find(match => match.matchday === matchday); return (<td key={`drawp-${matchday}`} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{m ? `${(m.draw_probabilities * 100).toFixed(0)}%` : '-'}</td>); })}
-            </tr>
-
-            {/* Auswärts-W */}
-            <tr>
-                <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10 w-24">Auswärts-W:</td>
-                {matchdaysToDisplay.map((matchday) => { const m = clubMatches.find(match => match.matchday === matchday); return (<td key={`awayp-${matchday}`} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{m ? `${(m.away_probabilities * 100).toFixed(0)}%` : '-'}</td>); })}
-            </tr>
         </>
     );
 };
