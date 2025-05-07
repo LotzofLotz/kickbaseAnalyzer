@@ -31,7 +31,10 @@ export async function GET(request: NextRequest) {
         m.away_score,
         m.home_probabilities,
         m.away_probabilities,
-        m.draw_probabilities
+        m.draw_probabilities,
+        m.home_heuristics,
+        m.away_heuristics,
+        m.draw_heuristics
       FROM 
         matches_table m
       LEFT JOIN 
