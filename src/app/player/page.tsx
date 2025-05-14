@@ -61,22 +61,6 @@ const getQueryParam = (params: URLSearchParams | null, key: string, defaultValue
     return params?.get(key) ? decodeURIComponent(params.get(key)!) : defaultValue;
 };
 
-const calculateVizHeight = (value: number | null, maxValue: number, minValue: number = 0): number => {
-    if (value === null || value === undefined) return 0;
-    if (minValue >= 0) {
-        if (maxValue <= 0) return 0;
-        return Math.max(0, Math.min(100, (value / maxValue) * 100));
-    }
-    const range = maxValue - minValue;
-    if (range <= 0) {
-        if (value > 0) return 50;
-        if (value < 0) return 50;
-        return 0;
-    }
-    const scaledValue = ((value - minValue) / range) * 100;
-    return Math.max(0, Math.min(100, scaledValue));
-};
-
 const findMarketValueForMatchday = (matchday: number, clubMatches: ClubMatch[], valueHistory: ValueHistory[]): number | null => {
     const matchingMatch = clubMatches.find(match => match.matchday === matchday);
     if (!matchingMatch || !matchingMatch.match_date) return null;
@@ -109,7 +93,7 @@ const findMarketValueForMatchday = (matchday: number, clubMatches: ClubMatch[], 
 interface RenderTableBodyRowsProps {
     matchdaysToDisplay: number[];
     relevantCombinedData: MatchdayVizData[];
-    fullCombinedData: MatchdayVizData[]; // Needed for Diff calculation that might cross table boundaries
+    fullCombinedData: MatchdayVizData[];
     playerStats: PlayerStats[];
     clubMatches: ClubMatch[];
     teamId: string;
@@ -261,48 +245,105 @@ const RenderTableBodyRows: React.FC<RenderTableBodyRowsProps> = ({
                 <td className="px-3 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 sticky left-0 bg-gray-100 dark:bg-gray-750 z-20 align-top w-24">
                     Grafik:
                 </td>
-                {matchdaysToDisplay.map((md) => {
+                {/* Y-Achse mit Beschriftung - nur einmal auf der linken Seite */}
+                <td className="px-1 py-2 text-center align-bottom h-80 relative border-r border-gray-200 dark:border-gray-700 w-12 sticky left-24 bg-gray-100 dark:bg-gray-750 z-10">
+                    <div className="w-full h-full flex flex-col">
+                        <div className="absolute left-0 top-0 bottom-0 w-full flex flex-col justify-between text-[10px] text-gray-500 dark:text-gray-400">
+                            <div className="flex items-center">
+                                <div className="w-6 h-px bg-gray-300 dark:bg-gray-600"></div>
+                                <span className="ml-1 font-medium">{maxPoints}</span>
+                            </div>
+                            <div className="flex items-center">
+                                <div className="w-6 h-px bg-gray-300 dark:bg-gray-600"></div>
+                                <span className="ml-1 font-medium">{Math.round(maxPoints * 0.75)}</span>
+                            </div>
+                            <div className="flex items-center">
+                                <div className="w-6 h-px bg-gray-300 dark:bg-gray-600"></div>
+                                <span className="ml-1 font-medium">{Math.round(maxPoints * 0.5)}</span>
+                            </div>
+                            <div className="flex items-center">
+                                <div className="w-6 h-px bg-gray-300 dark:bg-gray-600"></div>
+                                <span className="ml-1 font-medium">{Math.round(maxPoints * 0.25)}</span>
+                            </div>
+                            <div className="flex items-center">
+                                <div className="w-6 h-px bg-gray-300 dark:bg-gray-600"></div>
+                                <span className="ml-1 font-medium">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </td>
+                <td colSpan={matchdaysToDisplay.length} className="relative">
+                    <svg className="w-full h-80 absolute top-0 left-0 pointer-events-none" style={{ zIndex: 5 }}>
+                        <polyline
+                            points={matchdaysToDisplay.map((md, index) => {
+                                const data = relevantCombinedData.find(d => d.matchday === md);
+                                const marketValue = data?.marketValue ?? null;
+                                if (marketValue === null) return '';
+                                const x = (index * 64) + 32; // 64px pro Spalte (16 * 4), +32 für die Mitte
+                                const y = 320 - (marketValue / maxMarketValue * 320); // 320px Höhe, von oben nach unten
+                                return `${x},${y}`;
+                            }).filter(Boolean).join(' ')}
+                            fill="none"
+                            stroke="rgb(34, 197, 94)" // green-500
+                            strokeWidth="2"
+                            className="dark:stroke-green-400"
+                        />
+                    </svg>
+                    <div className="grid grid-cols-[repeat(auto-fit,4rem)]">
+                        {matchdaysToDisplay.map((md, index) => {
                     const data = relevantCombinedData.find(d => d.matchday === md);
                     const points = data?.points ?? null;
                     const marketValue = data?.marketValue ?? null;
-
-                    const pointsHeight = calculateVizHeight(points, maxPoints, minPoints);
-                    const mvHeight = calculateVizHeight(marketValue, maxMarketValue, 0);
                     const isNegativePoints = points !== null && points < 0;
 
+                            // Berechne die Höhe relativ zum maximalen Wert
+                            const pointsHeight = points !== null ? (points / maxPoints * 100) : 0;
+                            const mvHeight = marketValue !== null ? (marketValue / maxMarketValue * 100) : 0;
+
                     return (
-                        <td key={`viz-${md}`} className="px-1 py-2 text-center align-bottom h-80 relative border-r border-gray-200 dark:border-gray-700 w-16">
-                            <div className="w-full h-full flex justify-center items-end space-x-px">
-                                {marketValue !== null && (
-                                    <div
-                                        className="bg-green-500 hover:bg-green-400 w-2"
-                                        style={{ height: `${mvHeight}%` }}
-                                        title={`MW: ${formatCurrency(marketValue ?? 0)}`}
-                                    ></div>
-                                )}
+                                <div key={`viz-${md}`} className="px-1 py-2 text-center align-bottom h-80 relative border-r border-gray-200 dark:border-gray-700 w-16">
+                                    <div className="w-full h-full flex flex-col">
+                                        {/* Balken-Container */}
+                                        <div className="w-full h-full flex justify-center items-end space-x-px relative">
+                                            {/* X-Achse */}
+                                            <div className="absolute left-0 right-0 h-px bg-gray-300 dark:bg-gray-600 bottom-0"></div>
+                                            
                                 {points !== null && (
                                     <div
-                                        className={`${isNegativePoints ? 'bg-red-500 hover:bg-red-400 self-start' : 'bg-blue-500 hover:bg-blue-400 self-end'} w-2 relative`}
+                                                    className={`${isNegativePoints ? 'bg-red-500 hover:bg-red-400' : 'bg-blue-500 hover:bg-blue-400'} w-2 relative`}
                                         style={{
-                                            height: `${calculateVizHeight(Math.abs(points ?? 0), Math.max(Math.abs(maxPoints), Math.abs(minPoints)))}%`,
-                                            // If you want bars to grow from a zero line, this gets more complex and needs zeroLinePercent
-                                            // For now, negative bars grow "down" (from top if self-start) and positive "up" (from bottom if self-end)
+                                                        height: `${pointsHeight}%`,
+                                                        position: 'absolute',
+                                                        bottom: '0'
                                         }}
                                         title={`Punkte: ${points}`}
                                     ></div>
                                 )}
+
+                                            {/* Marktwert-Punkt */}
+                                            {marketValue !== null && (
+                                                <div
+                                                    className="absolute w-2 h-2 bg-green-500 rounded-full"
+                                                    style={{
+                                                        bottom: `${mvHeight}%`,
+                                                        left: '50%',
+                                                        transform: 'translateX(-50%)'
+                                                    }}
+                                                    title={`Marktwert: ${formatCurrency(marketValue)}`}
+                                                />
+                                            )}
+                                        </div>
                             </div>
                              <div className="absolute top-0 left-0 right-0 px-1 text-center pointer-events-none">
-                                <div className={`text-xs ${points !== null && points < 0 ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400' } whitespace-nowrap`}>
+                                        <div className={`text-xs ${points !== null && points < 0 ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'} whitespace-nowrap`}>
                                     {points ?? '-'}
                                 </div>
-                                <div className="text-[10px] text-green-700 dark:text-green-400 whitespace-nowrap truncate">
-                                    {marketValue !== null ? (formatCurrency(marketValue).replace('€', '').replace('.000', 'k').replace('.',',')) : '-'}
+                                    </div>
                                 </div>
+                            );
+                        })}
                             </div>
                         </td>
-                    );
-                })}
             </tr>
 
             {/* Punkte */}
@@ -517,14 +558,17 @@ function PlayerInfoContent() {
         return combined;
     }, [playerStats, clubMatches, valueHistory]);
 
-    const { maxPoints, minPoints, maxMarketValue } = useMemo(() => {
+    const { maxPoints, minPoints } = useMemo(() => {
         const pointsValues = combinedMatchdayData.map(d => d.points).filter((p): p is number => p !== null);
-        const marketValues = combinedMatchdayData.map(d => d.marketValue).filter((mv): mv is number => mv !== null);
         return {
             maxPoints: pointsValues.length > 0 ? Math.max(0, ...pointsValues) : 0,
             minPoints: pointsValues.length > 0 ? Math.min(0, ...pointsValues) : 0,
-            maxMarketValue: marketValues.length > 0 ? Math.max(...marketValues) : 0,
         };
+    }, [combinedMatchdayData]);
+
+    const maxMarketValue = useMemo(() => {
+        const marketValues = combinedMatchdayData.map(d => d.marketValue).filter((mv): mv is number => mv !== null);
+        return marketValues.length > 0 ? Math.max(...marketValues) : 0;
     }, [combinedMatchdayData]);
 
     const teamData = getTeamData(teamId ?? '');
