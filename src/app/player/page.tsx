@@ -650,7 +650,36 @@ function PlayerInfoContent() {
                                     .reduce((sum, d) => sum + (d.points ?? 0), 0)
                             ) : points}
                         </dd></div>
-                        <div><dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Ø Punkte</dt><dd className="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{avgPoints}</dd></div>
+                        <div><dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Anzahl Einsätze</dt><dd className="mt-1 text-lg font-semibold text-gray-900 dark:text-white">
+                            {selectedMatchday > 0 ? (
+                                playerStats
+                                    .filter(s => s.matchday <= selectedMatchday && s.minutes > 0)
+                                    .length
+                            ) : playerStats.filter(s => s.minutes > 0).length}
+                        </dd></div>
+                        <div><dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Ø Punkte</dt><dd className="mt-1 text-lg font-semibold text-gray-900 dark:text-white">
+                            {selectedMatchday > 0 ? (
+                                (() => {
+                                    const totalPoints = combinedMatchdayData
+                                        .filter(d => d.matchday <= selectedMatchday && d.points !== null)
+                                        .reduce((sum, d) => sum + (d.points ?? 0), 0);
+                                    const appearances = playerStats
+                                        .filter(s => s.matchday <= selectedMatchday && s.minutes > 0)
+                                        .length;
+                                    return appearances > 0 ? Math.round(totalPoints / appearances) : '0';
+                                })()
+                            ) : (
+                                (() => {
+                                    const totalPoints = combinedMatchdayData
+                                        .filter(d => d.points !== null)
+                                        .reduce((sum, d) => sum + (d.points ?? 0), 0);
+                                    const appearances = playerStats
+                                        .filter(s => s.minutes > 0)
+                                        .length;
+                                    return appearances > 0 ? Math.round(totalPoints / appearances) : '0';
+                                })()
+                            )}
+                        </dd></div>
                         <div><dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Spieler-ID</dt><dd className="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{playerId}</dd></div>
                         <div><dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Verein-ID</dt><dd className="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{teamId}</dd></div>
                     </div>
