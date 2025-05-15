@@ -555,6 +555,7 @@ function PlayerInfoContent() {
             const marketValueFormatted = marketValue !== null ? formatCurrency(marketValue) : null;
             combined.push({ matchday: i, points: points, marketValue: marketValue, marketValueFormatted: marketValueFormatted });
         }
+        console.log('Performance-Punkte pro Spieltag:', combined.map(d => ({ matchday: d.matchday, points: d.points })));
         return combined;
     }, [playerStats, clubMatches, valueHistory]);
 
@@ -585,11 +586,25 @@ function PlayerInfoContent() {
     const SPLIT_MATCHDAY = 30;
     const totalMatchdays = 34;
 
-    const analysisMatchdays = useMemo(() => Array.from({ length: SPLIT_MATCHDAY - 1 }, (_, i) => i + 1), [SPLIT_MATCHDAY]);
-    const prognosisMatchdays = useMemo(() => Array.from({ length: totalMatchdays - SPLIT_MATCHDAY + 1 }, (_, i) => SPLIT_MATCHDAY + i), [SPLIT_MATCHDAY, totalMatchdays]);
+    const analysisMatchdays = useMemo(() => {
+        console.log('Analysis Matchdays:', Array.from({ length: SPLIT_MATCHDAY - 1 }, (_, i) => i + 1));
+        return Array.from({ length: SPLIT_MATCHDAY - 1 }, (_, i) => i + 1);
+    }, [SPLIT_MATCHDAY]);
 
-    const analysisCombinedData = useMemo(() => combinedMatchdayData.filter(d => d.matchday < SPLIT_MATCHDAY), [combinedMatchdayData, SPLIT_MATCHDAY]);
-    const prognosisCombinedData = useMemo(() => combinedMatchdayData.filter(d => d.matchday >= SPLIT_MATCHDAY), [combinedMatchdayData, SPLIT_MATCHDAY]);
+    const prognosisMatchdays = useMemo(() => {
+        console.log('Prognosis Matchdays:', Array.from({ length: totalMatchdays - SPLIT_MATCHDAY + 1 }, (_, i) => SPLIT_MATCHDAY + i));
+        return Array.from({ length: totalMatchdays - SPLIT_MATCHDAY + 1 }, (_, i) => SPLIT_MATCHDAY + i);
+    }, [SPLIT_MATCHDAY, totalMatchdays]);
+
+    const analysisCombinedData = useMemo(() => {
+        console.log('Analysis Combined Data:', combinedMatchdayData.filter(d => d.matchday < SPLIT_MATCHDAY));
+        return combinedMatchdayData.filter(d => d.matchday < SPLIT_MATCHDAY);
+    }, [combinedMatchdayData, SPLIT_MATCHDAY]);
+
+    const prognosisCombinedData = useMemo(() => {
+        console.log('Prognosis Combined Data:', combinedMatchdayData.filter(d => d.matchday >= SPLIT_MATCHDAY));
+        return combinedMatchdayData.filter(d => d.matchday >= SPLIT_MATCHDAY);
+    }, [combinedMatchdayData, SPLIT_MATCHDAY]);
     
     const commonTableBodyProps = {
         fullCombinedData: combinedMatchdayData,
