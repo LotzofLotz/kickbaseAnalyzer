@@ -586,26 +586,12 @@ function PlayerInfoContent() {
     const SPLIT_MATCHDAY = 30;
     const totalMatchdays = 34;
 
-    const analysisMatchdays = useMemo(() => {
-        console.log('Analysis Matchdays:', Array.from({ length: SPLIT_MATCHDAY - 1 }, (_, i) => i + 1));
-        return Array.from({ length: SPLIT_MATCHDAY - 1 }, (_, i) => i + 1);
-    }, [SPLIT_MATCHDAY]);
+    const allMatchdays = useMemo(() => {
+        return Array.from({ length: totalMatchdays }, (_, i) => i + 1);
+    }, [totalMatchdays]);
 
-    const prognosisMatchdays = useMemo(() => {
-        console.log('Prognosis Matchdays:', Array.from({ length: totalMatchdays - SPLIT_MATCHDAY + 1 }, (_, i) => SPLIT_MATCHDAY + i));
-        return Array.from({ length: totalMatchdays - SPLIT_MATCHDAY + 1 }, (_, i) => SPLIT_MATCHDAY + i);
-    }, [SPLIT_MATCHDAY, totalMatchdays]);
+    const isLoadingOrError = statsLoading || matchesLoading || isLoading || statsError || matchesError || error;
 
-    const analysisCombinedData = useMemo(() => {
-        console.log('Analysis Combined Data:', combinedMatchdayData.filter(d => d.matchday < SPLIT_MATCHDAY));
-        return combinedMatchdayData.filter(d => d.matchday < SPLIT_MATCHDAY);
-    }, [combinedMatchdayData, SPLIT_MATCHDAY]);
-
-    const prognosisCombinedData = useMemo(() => {
-        console.log('Prognosis Combined Data:', combinedMatchdayData.filter(d => d.matchday >= SPLIT_MATCHDAY));
-        return combinedMatchdayData.filter(d => d.matchday >= SPLIT_MATCHDAY);
-    }, [combinedMatchdayData, SPLIT_MATCHDAY]);
-    
     const commonTableBodyProps = {
         fullCombinedData: combinedMatchdayData,
         playerStats,
@@ -615,8 +601,6 @@ function PlayerInfoContent() {
         minPoints,
         maxMarketValue
     };
-
-    const isLoadingOrError = statsLoading || matchesLoading || isLoading || statsError || matchesError || error;
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-900 dark:to-gray-800">
@@ -673,64 +657,31 @@ function PlayerInfoContent() {
                 )}
 
                 {!isLoadingOrError && (combinedMatchdayData.length > 0 || playerStats.length > 0 || clubMatches.length > 0) && (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {/* Player Analysis Section (MD 1 to SPLIT_MATCHDAY - 1) */}
-                        <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-                            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                                <h3 className="text-lg font-medium text-gray-900 dark:text-white">Spieleranalyse</h3>
-                            </div>
-                            <div className="overflow-x-auto">
-                                <div className="w-[600px]">
-                                    <table className="divide-y divide-gray-200 dark:divide-gray-700 w-full">
-                                        <thead className="bg-gray-50 dark:bg-gray-700">
-                                            <tr>
-                                                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-24 sticky left-0 bg-gray-50 dark:bg-gray-700 z-20">MD:</th>
-                                                {analysisMatchdays.map((matchday) => (
-                                                    <th key={`head-an-${matchday}`} scope="col" className="px-3 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-16">{matchday}</th>
-                                                ))}
-                                            </tr>
-                                        </thead>
-                                        <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                                            <RenderTableBodyRows
-                                                matchdaysToDisplay={analysisMatchdays}
-                                                relevantCombinedData={analysisCombinedData}
-                                                {...commonTableBodyProps}
-                                            />
-                                        </tbody>
-                                    </table>
-                                </div>
+                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+                        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                            <h3 className="text-lg font-medium text-gray-900 dark:text-white">Spielerstatistik</h3>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <div className="w-[1200px]">
+                                <table className="divide-y divide-gray-200 dark:divide-gray-700 w-full">
+                                    <thead className="bg-gray-50 dark:bg-gray-700">
+                                        <tr>
+                                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-24 sticky left-0 bg-gray-50 dark:bg-gray-700 z-20">MD:</th>
+                                            {allMatchdays.map((matchday) => (
+                                                <th key={`head-${matchday}`} scope="col" className="px-3 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-16">{matchday}</th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                        <RenderTableBodyRows
+                                            matchdaysToDisplay={allMatchdays}
+                                            relevantCombinedData={combinedMatchdayData}
+                                            {...commonTableBodyProps}
+                                        />
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
-
-                        {/* Player Prognosis Section (MD SPLIT_MATCHDAY to 34) */}
-                        {prognosisMatchdays.length > 0 && (
-                            <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-                                <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                                    <h3 className="text-lg font-medium text-gray-900 dark:text-white">Spielerprognose</h3>
-                                </div>
-                                <div className="overflow-x-auto">
-                                    <div className="w-[600px]">
-                                        <table className="divide-y divide-gray-200 dark:divide-gray-700 w-full">
-                                            <thead className="bg-gray-50 dark:bg-gray-700">
-                                                <tr>
-                                                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-24 sticky left-0 bg-gray-50 dark:bg-gray-700 z-20">MD:</th>
-                                                    {prognosisMatchdays.map((matchday) => (
-                                                        <th key={`head-pr-${matchday}`} scope="col" className="px-3 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-16">{matchday}</th>
-                                                    ))}
-                                                </tr>
-                                            </thead>
-                                            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                                                <RenderTableBodyRows
-                                                    matchdaysToDisplay={prognosisMatchdays}
-                                                    relevantCombinedData={prognosisCombinedData}
-                                                    {...commonTableBodyProps}
-                                                />
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
                     </div>
                 )}
             </main>
