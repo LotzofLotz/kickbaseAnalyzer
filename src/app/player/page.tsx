@@ -121,7 +121,7 @@ const RenderTableBodyRows: React.FC<RenderTableBodyRowsProps> = ({
                 {matchdaysToDisplay.map((matchday) => {
                     const matchingMatch = clubMatches.find(match => match.matchday === matchday);
                     const formattedDate = matchingMatch?.match_date ? new Date(matchingMatch.match_date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) : '-';
-                    return (<td key={`date-${matchday}`} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{formattedDate}</td>);
+                    return (<td key={`date-${matchday}`} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-20">{formattedDate}</td>);
                 })}
             </tr>
 
@@ -476,6 +476,8 @@ function PlayerInfoContent() {
     const [matchesLoading, setMatchesLoading] = useState(false);
     const [matchesError, setMatchesError] = useState<string | null>(null);
 
+    const [selectedMatchday, setSelectedMatchday] = useState<number>(0);
+
     // Fetching useEffect hooks
     useEffect(() => {
         if (leagueId) {
@@ -607,9 +609,21 @@ function PlayerInfoContent() {
                              {firstName !== '-' ? `${firstName} ${lastName}` : lastName}
                          </h1>
                      </div>
-                     <button onClick={handleBack} className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">
-                         Zurück
-                     </button>
+                     <div className="flex items-center space-x-4">
+                         <select
+                             value={selectedMatchday}
+                             onChange={(e) => setSelectedMatchday(Number(e.target.value))}
+                             className="block w-32 px-3 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                         >
+                             <option value={0}>Spieltag wählen</option>
+                             {Array.from({ length: 34 }, (_, i) => i + 1).map((md) => (
+                                 <option key={md} value={md}>Spieltag {md}</option>
+                             ))}
+                         </select>
+                         <button onClick={handleBack} className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">
+                             Zurück
+                         </button>
+                     </div>
                  </div>
              </header>
 
@@ -653,13 +667,22 @@ function PlayerInfoContent() {
                             <h3 className="text-lg font-medium text-gray-900 dark:text-white">Spielerstatistik</h3>
                         </div>
                         <div className="overflow-x-auto">
-                            <div className="w-[1200px]">
-                                <table className="divide-y divide-gray-200 dark:divide-gray-700 w-full">
+                            <div className="w-[1200px] relative">
+                                {selectedMatchday > 0 && (
+                                    <div 
+                                        className="absolute top-0 bottom-0 w-0.5 bg-red-500 dark:bg-red-400 z-30"
+                                        style={{ 
+                                            left: `${96 + selectedMatchday * 80}px`,
+                                            height: '100%'
+                                        }}
+                                    />
+                                )}
+                                <table className="divide-y divide-gray-200 dark:divide-gray-700 w-full table-fixed">
                                     <thead className="bg-gray-50 dark:bg-gray-700">
                                         <tr>
                                             <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-24 sticky left-0 bg-gray-50 dark:bg-gray-700 z-20">MD:</th>
                                             {allMatchdays.map((matchday) => (
-                                                <th key={`head-${matchday}`} scope="col" className="px-3 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-16">{matchday}</th>
+                                                <th key={`head-${matchday}`} scope="col" className="px-3 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-20">{matchday}</th>
                                             ))}
                                         </tr>
                                     </thead>
