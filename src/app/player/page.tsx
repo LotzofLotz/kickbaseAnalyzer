@@ -325,47 +325,55 @@ const RenderTableBodyRows: React.FC<RenderTableBodyRowsProps> = ({
                     </svg>
                     <div className="grid grid-cols-[repeat(auto-fit,5rem)]">
                         {matchdaysToDisplay.map((md, index) => {
-                    const data = relevantCombinedData.find(d => d.matchday === md);
-                    const points = data?.points ?? null;
-                    const isNegativePoints = points !== null && points < 0;
+                            const data = relevantCombinedData.find(d => d.matchday === md);
+                            let points = data?.points ?? null;
+                            
+                            // Berechne prognostizierte Punkte für zukünftige Spieltage
+                            if (selectedMatchday > 0 && md > selectedMatchday) {
+                                points = calculateProjectedPoints(
+                                    md,
+                                    selectedMatchday,
+                                    relevantCombinedData,
+                                    playerStats,
+                                    clubMatches,
+                                    teamId
+                                );
+                            }
+                            
+                            const isNegativePoints = points !== null && points < 0;
 
                             // Berechne die Höhe relativ zum maximalen Wert
                             const pointsHeight = points !== null ? (points / maxPoints * 100) : 0;
-                            // const mvHeight = marketValue !== null ? (marketValue / maxMarketValue * 100) : 0;
 
-                    return (
+                            return (
                                 <div key={`viz-${md}`} className="px-1 py-2 text-center align-bottom h-80 relative border-r border-gray-200 dark:border-gray-700 w-16">
                                     <div className="w-full h-full flex flex-col">
-                                        {/* Balken-Container */}
                                         <div className="w-full h-full flex justify-center items-end space-x-px relative">
-                                            {/* X-Achse */}
                                             <div className="absolute left-0 right-0 h-px bg-gray-300 dark:bg-gray-600 bottom-0"></div>
                                             
-                                {points !== null && (
-                                    <div
+                                            {points !== null && (
+                                                <div
                                                     className={`${isNegativePoints ? 'bg-red-500 hover:bg-red-400' : 'bg-blue-500 hover:bg-blue-400'} w-2 relative`}
-                                        style={{
+                                                    style={{
                                                         height: `${pointsHeight}%`,
                                                         position: 'absolute',
                                                         bottom: '0'
-                                        }}
-                                        title={`Punkte: ${points}`}
-                                    ></div>
-                                )}
-
-                                            {/* Marktwert-Punkt entfernt */}
+                                                    }}
+                                                    title={`Punkte: ${points}`}
+                                                ></div>
+                                            )}
                                         </div>
-                            </div>
-                             <div className="absolute top-0 left-0 right-0 px-1 text-center pointer-events-none">
+                                    </div>
+                                    <div className="absolute top-0 left-0 right-0 px-1 text-center pointer-events-none">
                                         <div className={`text-xs ${points !== null && points < 0 ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'} whitespace-nowrap`}>
-                                    {points ?? '-'}
-                                </div>
+                                            {points ?? '-'}
+                                        </div>
                                     </div>
                                 </div>
                             );
                         })}
-                            </div>
-                        </td>
+                    </div>
+                </td>
             </tr>
 
             {/* Punkte */}
