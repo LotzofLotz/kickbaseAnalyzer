@@ -127,85 +127,98 @@ const RenderTableBodyRows: React.FC<RenderTableBodyRowsProps> = ({
 
             {/* W/D/L */}
             <tr>
-                <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10 w-24">W/D/L-P:</td>
+                <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10 w-24">W/D/L:</td>
+                {matchdaysToDisplay.map((matchday) => {
+                    const matchingMatch = clubMatches.find(match => match.matchday === matchday);
+                    if (!matchingMatch) return <td key={`wdl-result-${matchday}`} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">-</td>;
+                    
+                    const isHome = String(teamId) === String(matchingMatch.home_club_id);
+                    const hs = matchingMatch.home_score;
+                    const as = matchingMatch.away_score;
+                    
+                    let result = 'D';
+                    if (hs > as) {
+                        result = isHome ? 'W' : 'L';
+                    } else if (hs < as) {
+                        result = isHome ? 'L' : 'W';
+                    }
+                    
+                    let resultColor = "text-yellow-500 dark:text-yellow-400 font-medium";
+                    if (result === 'W') {
+                        resultColor = "text-green-600 dark:text-green-400 font-bold";
+                    } else if (result === 'L') {
+                        resultColor = "text-red-600 dark:text-red-400 font-medium";
+                    }
+
+                    return <td key={`wdl-result-${matchday}`} className={`px-3 py-2 text-center text-xs ${resultColor} w-16`}>{result}</td>;
+                })}
+            </tr>
+
+            {/* W/D/L-T */}
+            <tr>
+                <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10 w-24">W/D/L-T:</td>
                 {matchdaysToDisplay.map((matchday) => {
                     const matchingMatch = clubMatches.find(match => match.matchday === matchday);
                     if (!matchingMatch) return <td key={`wdl-${matchday}`} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">-</td>;
                     
                     const isHome = String(teamId) === String(matchingMatch.home_club_id);
-                    let result = 'D'; const hs = matchingMatch.home_score; const as = matchingMatch.away_score; if (hs > as) { result = isHome ? 'W' : 'L'; } else if (hs < as) { result = isHome ? 'L' : 'W'; }
-                    let rc = "text-yellow-500 dark:text-yellow-400 font-medium"; if (result === 'W') { rc = "text-green-600 dark:text-green-400 font-bold"; } else if (result === 'L') { rc = "text-red-600 dark:text-red-400 font-medium"; }
+                    const homeProb = matchingMatch.home_probabilities / 100;
+                    const awayProb = matchingMatch.away_probabilities / 100;
+                    const drawProbValue = matchingMatch.draw_probabilities / 100;
+                    
+                    const winProbRaw = isHome ? 1 / homeProb : 1 / awayProb;
+                    const drawProbRaw = 1 / drawProbValue;
+                    const lossProbRaw = isHome ? 1 / awayProb : 1 / homeProb;
+                    
+                    const sumOfReciprocals = winProbRaw + drawProbRaw + lossProbRaw;
+                    
+                    const winProb = winProbRaw / sumOfReciprocals;
+                    const drawProbNorm = drawProbRaw / sumOfReciprocals;
+                    const lossProb = lossProbRaw / sumOfReciprocals;
 
-                    // Berechne Wahrscheinlichkeiten für zukünftige Spiele
-                    if (matchingMatch.matchday >= 30) {
-                        const homeProb = matchingMatch.home_probabilities / 100;
-                        const awayProb = matchingMatch.away_probabilities / 100;
-                        const drawProbValue = matchingMatch.draw_probabilities / 100;
-                        
-                        const winProbRaw = isHome ? 1 / homeProb : 1 / awayProb;
-                        const drawProbRaw = 1 / drawProbValue;
-                        const lossProbRaw = isHome ? 1 / awayProb : 1 / homeProb;
-                        
-                        const sumOfReciprocals = winProbRaw + drawProbRaw + lossProbRaw;
-                        
-                        const winProb = winProbRaw / sumOfReciprocals;
-                        const drawProbNorm = drawProbRaw / sumOfReciprocals;
-                        const lossProb = lossProbRaw / sumOfReciprocals;
-
-                        return (
-                            <td key={`wdl-${matchday}`} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">
-                                <div className="flex flex-col space-y-1">
-                                    <span className="text-green-600 dark:text-green-400">W: {(winProb * 100).toFixed(0)}%</span>
-                                    <span className="text-yellow-600 dark:text-yellow-400">D: {(drawProbNorm * 100).toFixed(0)}%</span>
-                                    <span className="text-red-600 dark:text-red-400">L: {(lossProb * 100).toFixed(0)}%</span>
-                                </div>
-                            </td>
-                        );
-                    }
-
-                    return <td key={`wdl-${matchday}`} className={`px-3 py-2 text-center text-xs ${rc} w-16`}>{result}</td>;
+                    return (
+                        <td key={`wdl-${matchday}`} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">
+                            <div className="flex flex-col space-y-1">
+                                <span className="text-green-600 dark:text-green-400">W: {(winProb * 100).toFixed(0)}%</span>
+                                <span className="text-yellow-600 dark:text-yellow-400">D: {(drawProbNorm * 100).toFixed(0)}%</span>
+                                <span className="text-red-600 dark:text-red-400">L: {(lossProb * 100).toFixed(0)}%</span>
+                            </div>
+                        </td>
+                    );
                 })}
             </tr>
 
-            {/* W/D/L-W */}
+            {/* W/D/L-F */}
             <tr>
-                <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10 w-24">W/D/L-W:</td>
+                <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10 w-24">W/D/L-F:</td>
                 {matchdaysToDisplay.map((matchday) => {
                     const matchingMatch = clubMatches.find(match => match.matchday === matchday);
                     if (!matchingMatch) return <td key={`wdlw-${matchday}`} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">-</td>;
                     
                     const isHome = String(teamId) === String(matchingMatch.home_club_id);
-                    let result = 'D'; const hs = matchingMatch.home_score; const as = matchingMatch.away_score; if (hs > as) { result = isHome ? 'W' : 'L'; } else if (hs < as) { result = isHome ? 'L' : 'W'; }
-                    let rc = "text-yellow-500 dark:text-yellow-400 font-medium"; if (result === 'W') { rc = "text-green-600 dark:text-green-400 font-bold"; } else if (result === 'L') { rc = "text-red-600 dark:text-red-400 font-medium"; }
+                    const homeHeur = matchingMatch.home_heuristics / 100;
+                    const awayHeur = matchingMatch.away_heuristics / 100;
+                    const drawHeurValue = matchingMatch.draw_heuristics / 100;
+                    
+                    const winProbRaw = isHome ? 1 / homeHeur : 1 / awayHeur;
+                    const drawProbRaw = 1 / drawHeurValue;
+                    const lossProbRaw = isHome ? 1 / awayHeur : 1 / homeHeur;
+                    
+                    const sumOfReciprocals = winProbRaw + drawProbRaw + lossProbRaw;
+                    
+                    const winProb = winProbRaw / sumOfReciprocals;
+                    const drawProbNorm = drawProbRaw / sumOfReciprocals;
+                    const lossProb = lossProbRaw / sumOfReciprocals;
 
-                    // Berechne Wahrscheinlichkeiten für zukünftige Spiele mit Heuristik-Werten
-                    if (matchingMatch.matchday >= 30) {
-                        const homeHeur = matchingMatch.home_heuristics / 100;
-                        const awayHeur = matchingMatch.away_heuristics / 100;
-                        const drawHeurValue = matchingMatch.draw_heuristics / 100;
-                        
-                        const winProbRaw = isHome ? 1 / homeHeur : 1 / awayHeur;
-                        const drawProbRaw = 1 / drawHeurValue;
-                        const lossProbRaw = isHome ? 1 / awayHeur : 1 / homeHeur;
-                        
-                        const sumOfReciprocals = winProbRaw + drawProbRaw + lossProbRaw;
-                        
-                        const winProb = winProbRaw / sumOfReciprocals;
-                        const drawProbNorm = drawProbRaw / sumOfReciprocals;
-                        const lossProb = lossProbRaw / sumOfReciprocals;
-
-                        return (
-                            <td key={`wdlw-${matchday}`} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">
-                                <div className="flex flex-col space-y-1">
-                                    <span className="text-green-600 dark:text-green-400">W: {(winProb * 100).toFixed(0)}%</span>
-                                    <span className="text-yellow-600 dark:text-yellow-400">D: {(drawProbNorm * 100).toFixed(0)}%</span>
-                                    <span className="text-red-600 dark:text-red-400">L: {(lossProb * 100).toFixed(0)}%</span>
-                                </div>
-                            </td>
-                        );
-                    }
-
-                    return <td key={`wdlw-${matchday}`} className={`px-3 py-2 text-center text-xs ${rc} w-16`}>{result}</td>;
+                    return (
+                        <td key={`wdlw-${matchday}`} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">
+                            <div className="flex flex-col space-y-1">
+                                <span className="text-green-600 dark:text-green-400">W: {(winProb * 100).toFixed(0)}%</span>
+                                <span className="text-yellow-600 dark:text-yellow-400">D: {(drawProbNorm * 100).toFixed(0)}%</span>
+                                <span className="text-red-600 dark:text-red-400">L: {(lossProb * 100).toFixed(0)}%</span>
+                            </div>
+                        </td>
+                    );
                 })}
             </tr>
 
