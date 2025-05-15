@@ -709,6 +709,69 @@ function PlayerInfoContent() {
                                 })()
                             )}
                         </dd></div>
+                        <div><dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Ø Matchup Score</dt><dd className="mt-1 text-lg font-semibold text-gray-900 dark:text-white">
+                            {selectedMatchday > 0 ? (
+                                (() => {
+                                    const relevantMatches = clubMatches
+                                        .filter(match => match.matchday <= selectedMatchday)
+                                        .map(match => {
+                                            const isHome = String(teamId) === String(match.home_club_id);
+                                            const homeHeur = match.home_heuristics / 100;
+                                            const awayHeur = match.away_heuristics / 100;
+                                            const drawHeurValue = match.draw_heuristics / 100;
+                                            
+                                            const winProbRaw = isHome ? 1 / homeHeur : 1 / awayHeur;
+                                            const drawProbRaw = 1 / drawHeurValue;
+                                            const lossProbRaw = isHome ? 1 / awayHeur : 1 / homeHeur;
+                                            
+                                            const sumOfReciprocals = winProbRaw + drawProbRaw + lossProbRaw;
+                                            
+                                            const lossProb = lossProbRaw / sumOfReciprocals;
+                                            return 1 - (lossProb * 100) / 100;
+                                        });
+                                    
+                                    const playerAppearances = playerStats
+                                        .filter(s => s.matchday <= selectedMatchday && s.minutes > 0)
+                                        .map(s => s.matchday);
+                                    
+                                    const validMatchupScores = relevantMatches
+                                        .filter((_, index) => playerAppearances.includes(index + 1));
+                                    
+                                    return validMatchupScores.length > 0 
+                                        ? (validMatchupScores.reduce((sum, score) => sum + score, 0) / validMatchupScores.length).toFixed(2)
+                                        : '0.00';
+                                })()
+                            ) : (
+                                (() => {
+                                    const relevantMatches = clubMatches.map(match => {
+                                        const isHome = String(teamId) === String(match.home_club_id);
+                                        const homeHeur = match.home_heuristics / 100;
+                                        const awayHeur = match.away_heuristics / 100;
+                                        const drawHeurValue = match.draw_heuristics / 100;
+                                        
+                                        const winProbRaw = isHome ? 1 / homeHeur : 1 / awayHeur;
+                                        const drawProbRaw = 1 / drawHeurValue;
+                                        const lossProbRaw = isHome ? 1 / awayHeur : 1 / homeHeur;
+                                        
+                                        const sumOfReciprocals = winProbRaw + drawProbRaw + lossProbRaw;
+                                        
+                                        const lossProb = lossProbRaw / sumOfReciprocals;
+                                        return 1 - (lossProb * 100) / 100;
+                                    });
+                                    
+                                    const playerAppearances = playerStats
+                                        .filter(s => s.minutes > 0)
+                                        .map(s => s.matchday);
+                                    
+                                    const validMatchupScores = relevantMatches
+                                        .filter((_, index) => playerAppearances.includes(index + 1));
+                                    
+                                    return validMatchupScores.length > 0 
+                                        ? (validMatchupScores.reduce((sum, score) => sum + score, 0) / validMatchupScores.length).toFixed(2)
+                                        : '0.00';
+                                })()
+                            )}
+                        </dd></div>
                         <div><dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Spieler-ID</dt><dd className="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{playerId}</dd></div>
                         <div><dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Verein-ID</dt><dd className="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{teamId}</dd></div>
                     </div>
