@@ -265,7 +265,7 @@ const RenderTableBodyRows: React.FC<RenderTableBodyRowsProps> = ({
                                 const data = relevantCombinedData.find(d => d.matchday === md);
                                 const marketValue = data?.marketValue ?? null;
                                 if (marketValue === null) return '';
-                                const x = (index * 64) + 32; // 64px pro Spalte (16 * 4), +32 für die Mitte
+                                const x = (index *80) + 32; // 64px pro Spalte (16 * 4), +32 für die Mitte
                                 const y = 320 - (marketValue / maxMarketValue * 320); // 320px Höhe, von oben nach unten
                                 return `${x},${y}`;
                             }).filter(Boolean).join(' ')}
@@ -278,7 +278,7 @@ const RenderTableBodyRows: React.FC<RenderTableBodyRowsProps> = ({
                             const data = relevantCombinedData.find(d => d.matchday === md);
                             const marketValue = data?.marketValue ?? null;
                             if (marketValue === null) return null;
-                            const x = (index * 64) + 32;
+                            const x = (index * 80) + 32;
                             const y = 320 - (marketValue / maxMarketValue * 320);
                             return (
                                 <circle
@@ -292,7 +292,7 @@ const RenderTableBodyRows: React.FC<RenderTableBodyRowsProps> = ({
                             );
                         })}
                     </svg>
-                    <div className="grid grid-cols-[repeat(auto-fit,4rem)]">
+                    <div className="grid grid-cols-[repeat(auto-fit,5rem)]">
                         {matchdaysToDisplay.map((md, index) => {
                     const data = relevantCombinedData.find(d => d.matchday === md);
                     const points = data?.points ?? null;
