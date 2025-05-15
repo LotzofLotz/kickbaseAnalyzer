@@ -245,33 +245,6 @@ const RenderTableBodyRows: React.FC<RenderTableBodyRowsProps> = ({
                 <td className="px-3 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 sticky left-0 bg-gray-100 dark:bg-gray-750 z-20 align-top w-24">
                     Grafik:
                 </td>
-                {/* Y-Achse mit Beschriftung - nur einmal auf der linken Seite */}
-                <td className="px-1 py-2 text-center align-bottom h-80 relative border-r border-gray-200 dark:border-gray-700 w-12 sticky left-24 bg-gray-100 dark:bg-gray-750 z-10">
-                    <div className="w-full h-full flex flex-col">
-                        <div className="absolute left-0 top-0 bottom-0 w-full flex flex-col justify-between text-[10px] text-gray-500 dark:text-gray-400">
-                            <div className="flex items-center">
-                                <div className="w-6 h-px bg-gray-300 dark:bg-gray-600"></div>
-                                <span className="ml-1 font-medium">{maxPoints}</span>
-                            </div>
-                            <div className="flex items-center">
-                                <div className="w-6 h-px bg-gray-300 dark:bg-gray-600"></div>
-                                <span className="ml-1 font-medium">{Math.round(maxPoints * 0.75)}</span>
-                            </div>
-                            <div className="flex items-center">
-                                <div className="w-6 h-px bg-gray-300 dark:bg-gray-600"></div>
-                                <span className="ml-1 font-medium">{Math.round(maxPoints * 0.5)}</span>
-                            </div>
-                            <div className="flex items-center">
-                                <div className="w-6 h-px bg-gray-300 dark:bg-gray-600"></div>
-                                <span className="ml-1 font-medium">{Math.round(maxPoints * 0.25)}</span>
-                            </div>
-                            <div className="flex items-center">
-                                <div className="w-6 h-px bg-gray-300 dark:bg-gray-600"></div>
-                                <span className="ml-1 font-medium">0</span>
-                            </div>
-                        </div>
-                    </div>
-                </td>
                 <td colSpan={matchdaysToDisplay.length} className="relative">
                     <svg className="w-full h-80 absolute top-0 left-0 pointer-events-none" style={{ zIndex: 5 }}>
                         <polyline
