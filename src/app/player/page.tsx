@@ -570,7 +570,7 @@ const calculateProjectedPoints = (
     const currentMatchupScore = 1 - (lossProb * 100) / 100;
 
     // Berechne die prognostizierten Punkte
-    return Math.round(avgPoints * (avgMatchupScore / currentMatchupScore));
+    return Math.round(avgPoints * (currentMatchupScore / avgMatchupScore));
 };
 
 function PlayerInfoContent() {
