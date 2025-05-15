@@ -643,7 +643,13 @@ function PlayerInfoContent() {
                     <div className="border-t border-gray-200 dark:border-gray-700 px-6 py-5 grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-6">
                         <div><dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Position</dt><dd className="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{getPositionName(position)}</dd></div>
                         <div><dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Marktwert</dt><dd className="mt-1 text-lg font-semibold text-gray-900 dark:text-white flex items-center">{formatCurrency(marketValue)}{mvt !== -1 && (<span className={`ml-2 text-xl font-bold ${trendColor}`}>{trendIcon}</span>)}</dd></div>
-                        <div><dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Punkte</dt><dd className="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{points}</dd></div>
+                        <div><dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Punkte</dt><dd className="mt-1 text-lg font-semibold text-gray-900 dark:text-white">
+                            {selectedMatchday > 0 ? (
+                                combinedMatchdayData
+                                    .filter(d => d.matchday <= selectedMatchday && d.points !== null)
+                                    .reduce((sum, d) => sum + (d.points ?? 0), 0)
+                            ) : points}
+                        </dd></div>
                         <div><dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Ø Punkte</dt><dd className="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{avgPoints}</dd></div>
                         <div><dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Spieler-ID</dt><dd className="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{playerId}</dd></div>
                         <div><dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Verein-ID</dt><dd className="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{teamId}</dd></div>
