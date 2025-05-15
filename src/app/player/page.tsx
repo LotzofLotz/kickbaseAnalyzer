@@ -100,6 +100,7 @@ interface RenderTableBodyRowsProps {
     maxPoints: number;
     minPoints: number;
     maxMarketValue: number;
+    selectedMatchday: number;
 }
 
 const RenderTableBodyRows: React.FC<RenderTableBodyRowsProps> = ({
@@ -111,7 +112,8 @@ const RenderTableBodyRows: React.FC<RenderTableBodyRowsProps> = ({
     teamId,
     maxPoints,
     minPoints,
-    maxMarketValue
+    maxMarketValue,
+    selectedMatchday
 }) => {
     return (
         <>
@@ -371,9 +373,23 @@ const RenderTableBodyRows: React.FC<RenderTableBodyRowsProps> = ({
                 <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10 w-24">Punkte:</td>
                 {matchdaysToDisplay.map((md) => {
                     const data = relevantCombinedData.find(d => d.matchday === md);
-                    const points = data?.points ?? null;
-                    let pc = "text-gray-500 dark:text-gray-400"; if (points !== null && points > 0) pc = "text-green-600 dark:text-green-400 font-medium"; else if (points !== null && points < 0) pc = "text-red-600 dark:text-red-400 font-medium";
-                    return (<td key={`pts-data-${md}`} className={`px-3 py-2 text-center text-xs ${pc} w-16`}>{points ?? '-'}</td>);
+                    let calculatedPoints = data?.points ?? null;
+                    
+                    if (selectedMatchday > 0 && md > selectedMatchday) {
+                        calculatedPoints = calculateProjectedPoints(
+                            md,
+                            selectedMatchday,
+                            relevantCombinedData,
+                            playerStats,
+                            clubMatches,
+                            teamId
+                        );
+                    }
+
+                    let pc = "text-gray-500 dark:text-gray-400"; 
+                    if (calculatedPoints !== null && calculatedPoints > 0) pc = "text-green-600 dark:text-green-400 font-medium"; 
+                    else if (calculatedPoints !== null && calculatedPoints < 0) pc = "text-red-600 dark:text-red-400 font-medium";
+                    return (<td key={`pts-data-${md}`} className={`px-3 py-2 text-center text-xs ${pc} w-16`}>{calculatedPoints ?? '-'}</td>);
                 })}
             </tr>
 
@@ -474,6 +490,80 @@ const RenderTableBodyRows: React.FC<RenderTableBodyRowsProps> = ({
     );
 };
 
+const calculateProjectedPoints = (
+    matchday: number,
+    selectedMatchday: number,
+    relevantCombinedData: MatchdayVizData[],
+    playerStats: PlayerStats[],
+    clubMatches: ClubMatch[],
+    teamId: string
+): number | null => {
+    if (selectedMatchday <= 0 || matchday <= selectedMatchday) {
+        return null;
+    }
+
+    // Berechne Ø Punkte aus der Spielerübersicht für den ausgewählten Spieltag
+    const selectedMatchdayData = relevantCombinedData
+        .filter((d: MatchdayVizData) => d.matchday <= selectedMatchday && d.points !== null)
+        .reduce((sum: number, d: MatchdayVizData) => sum + (d.points ?? 0), 0);
+    const appearances = playerStats
+        .filter(s => s.matchday <= selectedMatchday && s.minutes > 0)
+        .length;
+    const avgPoints = appearances > 0 ? selectedMatchdayData / appearances : 0;
+
+    // Berechne Ø Matchup Score aus der Spielerübersicht für den ausgewählten Spieltag
+    const relevantMatches = clubMatches
+        .filter(match => match.matchday <= selectedMatchday)
+        .map(match => {
+            const isHome = String(teamId) === String(match.home_club_id);
+            const homeHeur = match.home_heuristics / 100;
+            const awayHeur = match.away_heuristics / 100;
+            const drawHeurValue = match.draw_heuristics / 100;
+            
+            const winProbRaw = isHome ? 1 / homeHeur : 1 / awayHeur;
+            const drawProbRaw = 1 / drawHeurValue;
+            const lossProbRaw = isHome ? 1 / awayHeur : 1 / homeHeur;
+            
+            const sumOfReciprocals = winProbRaw + drawProbRaw + lossProbRaw;
+            
+            const lossProb = lossProbRaw / sumOfReciprocals;
+            return 1 - (lossProb * 100) / 100;
+        });
+    
+    const playerAppearances = playerStats
+        .filter(s => s.matchday <= selectedMatchday && s.minutes > 0)
+        .map(s => s.matchday);
+    
+    const validMatchupScores = relevantMatches
+        .filter((_, index) => playerAppearances.includes(index + 1));
+    
+    const avgMatchupScore = validMatchupScores.length > 0 
+        ? validMatchupScores.reduce((sum: number, score: number) => sum + score, 0) / validMatchupScores.length
+        : 0;
+
+    // Finde den Matchup Score für den aktuellen Spieltag
+    const currentMatch = clubMatches.find(match => match.matchday === matchday);
+    if (!currentMatch) {
+        return null;
+    }
+
+    const isHome = String(teamId) === String(currentMatch.home_club_id);
+    const homeHeur = currentMatch.home_heuristics / 100;
+    const awayHeur = currentMatch.away_heuristics / 100;
+    const drawHeurValue = currentMatch.draw_heuristics / 100;
+    
+    const winProbRaw = isHome ? 1 / homeHeur : 1 / awayHeur;
+    const drawProbRaw = 1 / drawHeurValue;
+    const lossProbRaw = isHome ? 1 / awayHeur : 1 / homeHeur;
+    
+    const sumOfReciprocals = winProbRaw + drawProbRaw + lossProbRaw;
+    
+    const lossProb = lossProbRaw / sumOfReciprocals;
+    const currentMatchupScore = 1 - (lossProb * 100) / 100;
+
+    // Berechne die prognostizierten Punkte
+    return Math.round(avgPoints * (avgMatchupScore / currentMatchupScore));
+};
 
 function PlayerInfoContent() {
     const router = useRouter();
@@ -613,16 +703,6 @@ function PlayerInfoContent() {
     }, [totalMatchdays]);
 
     const isLoadingOrError = statsLoading || matchesLoading || isLoading || statsError || matchesError || error;
-
-    const commonTableBodyProps = {
-        fullCombinedData: combinedMatchdayData,
-        playerStats,
-        clubMatches,
-        teamId: teamId ?? '',
-        maxPoints,
-        minPoints,
-        maxMarketValue
-    };
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-900 dark:to-gray-800">
@@ -817,7 +897,14 @@ function PlayerInfoContent() {
                                         <RenderTableBodyRows
                                             matchdaysToDisplay={allMatchdays}
                                             relevantCombinedData={combinedMatchdayData}
-                                            {...commonTableBodyProps}
+                                            fullCombinedData={combinedMatchdayData}
+                                            playerStats={playerStats}
+                                            clubMatches={clubMatches}
+                                            teamId={teamId ?? ''}
+                                            maxPoints={maxPoints}
+                                            minPoints={minPoints}
+                                            maxMarketValue={maxMarketValue}
+                                            selectedMatchday={selectedMatchday}
                                         />
                                     </tbody>
                                 </table>
