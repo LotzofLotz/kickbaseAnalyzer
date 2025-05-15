@@ -222,6 +222,35 @@ const RenderTableBodyRows: React.FC<RenderTableBodyRowsProps> = ({
                 })}
             </tr>
 
+            {/* Matchup Score */}
+            <tr className="bg-gray-50 dark:bg-gray-700/50">
+                <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10 w-24">Matchup Score:</td>
+                {matchdaysToDisplay.map((matchday) => {
+                    const matchingMatch = clubMatches.find(match => match.matchday === matchday);
+                    if (!matchingMatch) return <td key={`matchup-${matchday}`} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">-</td>;
+                    
+                    const isHome = String(teamId) === String(matchingMatch.home_club_id);
+                    const homeHeur = matchingMatch.home_heuristics / 100;
+                    const awayHeur = matchingMatch.away_heuristics / 100;
+                    const drawHeurValue = matchingMatch.draw_heuristics / 100;
+                    
+                    const winProbRaw = isHome ? 1 / homeHeur : 1 / awayHeur;
+                    const drawProbRaw = 1 / drawHeurValue;
+                    const lossProbRaw = isHome ? 1 / awayHeur : 1 / homeHeur;
+                    
+                    const sumOfReciprocals = winProbRaw + drawProbRaw + lossProbRaw;
+                    
+                    const lossProb = lossProbRaw / sumOfReciprocals;
+                    const matchupScore = 1 - (lossProb * 100) / 100;
+
+                    return (
+                        <td key={`matchup-${matchday}`} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">
+                            {matchupScore.toFixed(2)}
+                        </td>
+                    );
+                })}
+            </tr>
+
             {/* Gegner */}
             <tr className="bg-gray-50 dark:bg-gray-700/50">
                 <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10 w-24">Gegner:</td>
