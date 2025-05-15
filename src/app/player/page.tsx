@@ -261,17 +261,33 @@ const RenderTableBodyRows: React.FC<RenderTableBodyRowsProps> = ({
                             strokeWidth="2"
                             className="dark:stroke-green-400"
                         />
+                        {matchdaysToDisplay.map((md, index) => {
+                            const data = relevantCombinedData.find(d => d.matchday === md);
+                            const marketValue = data?.marketValue ?? null;
+                            if (marketValue === null) return null;
+                            const x = (index * 64) + 32;
+                            const y = 320 - (marketValue / maxMarketValue * 320);
+                            return (
+                                <circle
+                                    key={`mv-dot-${md}`}
+                                    cx={x}
+                                    cy={y}
+                                    r={4}
+                                    fill="rgb(34,197,94)"
+                                    className="dark:fill-green-400"
+                                />
+                            );
+                        })}
                     </svg>
                     <div className="grid grid-cols-[repeat(auto-fit,4rem)]">
                         {matchdaysToDisplay.map((md, index) => {
                     const data = relevantCombinedData.find(d => d.matchday === md);
                     const points = data?.points ?? null;
-                    const marketValue = data?.marketValue ?? null;
                     const isNegativePoints = points !== null && points < 0;
 
                             // Berechne die Höhe relativ zum maximalen Wert
                             const pointsHeight = points !== null ? (points / maxPoints * 100) : 0;
-                            const mvHeight = marketValue !== null ? (marketValue / maxMarketValue * 100) : 0;
+                            // const mvHeight = marketValue !== null ? (marketValue / maxMarketValue * 100) : 0;
 
                     return (
                                 <div key={`viz-${md}`} className="px-1 py-2 text-center align-bottom h-80 relative border-r border-gray-200 dark:border-gray-700 w-16">
@@ -293,18 +309,7 @@ const RenderTableBodyRows: React.FC<RenderTableBodyRowsProps> = ({
                                     ></div>
                                 )}
 
-                                            {/* Marktwert-Punkt */}
-                                            {marketValue !== null && (
-                                                <div
-                                                    className="absolute w-2 h-2 bg-green-500 rounded-full"
-                                                    style={{
-                                                        bottom: `${mvHeight}%`,
-                                                        left: '50%',
-                                                        transform: 'translateX(-50%)'
-                                                    }}
-                                                    title={`Marktwert: ${formatCurrency(marketValue)}`}
-                                                />
-                                            )}
+                                            {/* Marktwert-Punkt entfernt */}
                                         </div>
                             </div>
                              <div className="absolute top-0 left-0 right-0 px-1 text-center pointer-events-none">
