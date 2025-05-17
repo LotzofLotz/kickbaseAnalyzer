@@ -57,6 +57,16 @@ interface MatchdayVizData {
     marketValueFormatted: string | null;
 }
 
+interface PlayerNews {
+    player_id: number;
+    date: string;
+    time: string;
+    title: string;
+    link: string;
+    comprehension: string;
+    category: string;
+}
+
 const getQueryParam = (params: URLSearchParams | null, key: string, defaultValue: string = '-') => {
     return params?.get(key) ? decodeURIComponent(params.get(key)!) : defaultValue;
 };
@@ -605,6 +615,10 @@ function PlayerInfoContent() {
 
     const [selectedMatchday, setSelectedMatchday] = useState<number>(0);
 
+    const [playerNews, setPlayerNews] = useState<PlayerNews[]>([]);
+    const [newsLoading, setNewsLoading] = useState(false);
+    const [newsError, setNewsError] = useState<string | null>(null);
+
     // Fetching useEffect hooks
     useEffect(() => {
         if (leagueId) {
@@ -664,6 +678,25 @@ function PlayerInfoContent() {
          };
         fetchClubMatches();
     }, [teamId]);
+
+    useEffect(() => {
+        const fetchPlayerNews = async () => {
+            if (!playerId || playerId === '-') return;
+            setNewsLoading(true);
+            setNewsError(null);
+            try {
+                const response = await fetch(`/api/player-news?playerId=${encodeURIComponent(playerId)}`);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data: PlayerNews[] = await response.json();
+                setPlayerNews(data);
+            } catch (e) {
+                setNewsError(e instanceof Error ? e.message : 'Fehler beim Laden der Spielernachrichten.');
+            } finally {
+                setNewsLoading(false);
+            }
+        };
+        fetchPlayerNews();
+    }, [playerId]);
 
     const combinedMatchdayData = useMemo((): MatchdayVizData[] => {
         const combined: MatchdayVizData[] = [];
@@ -877,48 +910,105 @@ function PlayerInfoContent() {
                 )}
 
                 {!isLoadingOrError && (combinedMatchdayData.length > 0 || playerStats.length > 0 || clubMatches.length > 0) && (
-                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-                        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                            <h3 className="text-lg font-medium text-gray-900 dark:text-white">Spielerstatistik</h3>
-                        </div>
-                        <div className="overflow-x-auto">
-                            <div className="w-[1200px] relative">
-                                {selectedMatchday > 0 && (
-                                    <div 
-                                        className="absolute top-0 bottom-0 w-0.5 bg-red-500 dark:bg-red-400 z-30"
-                                        style={{ 
-                                            left: `${96 + selectedMatchday * 80}px`,
-                                            height: '100%'
-                                        }}
-                                    />
-                                )}
-                                <table className="divide-y divide-gray-200 dark:divide-gray-700 w-full table-fixed">
-                                    <thead className="bg-gray-50 dark:bg-gray-700">
-                                        <tr>
-                                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-24 sticky left-0 bg-gray-50 dark:bg-gray-700 z-20">MD:</th>
-                                            {allMatchdays.map((matchday) => (
-                                                <th key={`head-${matchday}`} scope="col" className="px-3 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-20">{matchday}</th>
-                                            ))}
-                                        </tr>
-                                    </thead>
-                                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                                        <RenderTableBodyRows
-                                            matchdaysToDisplay={allMatchdays}
-                                            relevantCombinedData={combinedMatchdayData}
-                                            fullCombinedData={combinedMatchdayData}
-                                            playerStats={playerStats}
-                                            clubMatches={clubMatches}
-                                            teamId={teamId ?? ''}
-                                            maxPoints={maxPoints}
-                                            minPoints={minPoints}
-                                            maxMarketValue={maxMarketValue}
-                                            selectedMatchday={selectedMatchday}
+                    <>
+                        <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+                            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                                <h3 className="text-lg font-medium text-gray-900 dark:text-white">Spielerstatistik</h3>
+                            </div>
+                            <div className="overflow-x-auto">
+                                <div className="w-[1200px] relative">
+                                    {selectedMatchday > 0 && (
+                                        <div 
+                                            className="absolute top-0 bottom-0 w-0.5 bg-red-500 dark:bg-red-400 z-30"
+                                            style={{ 
+                                                left: `${96 + selectedMatchday * 80}px`,
+                                                height: '100%'
+                                            }}
                                         />
-                                    </tbody>
-                                </table>
+                                    )}
+                                    <table className="divide-y divide-gray-200 dark:divide-gray-700 w-full table-fixed">
+                                        <thead className="bg-gray-50 dark:bg-gray-700">
+                                            <tr>
+                                                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-24 sticky left-0 bg-gray-50 dark:bg-gray-700 z-20">MD:</th>
+                                                {allMatchdays.map((matchday) => (
+                                                    <th key={`head-${matchday}`} scope="col" className="px-3 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-20">{matchday}</th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                            <RenderTableBodyRows
+                                                matchdaysToDisplay={allMatchdays}
+                                                relevantCombinedData={combinedMatchdayData}
+                                                fullCombinedData={combinedMatchdayData}
+                                                playerStats={playerStats}
+                                                clubMatches={clubMatches}
+                                                teamId={teamId ?? ''}
+                                                maxPoints={maxPoints}
+                                                minPoints={minPoints}
+                                                maxMarketValue={maxMarketValue}
+                                                selectedMatchday={selectedMatchday}
+                                            />
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
-                    </div>
+
+                        {/* Spielernachrichten Widget */}
+                        <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+                            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                                <h3 className="text-lg font-medium text-gray-900 dark:text-white">Spielernachrichten</h3>
+                            </div>
+                            <div className="overflow-x-auto">
+                                {newsLoading && <p className="text-gray-600 dark:text-gray-400 text-center py-4">Lade Nachrichten...</p>}
+                                {newsError && (
+                                    <div className="m-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative dark:bg-red-900/30 dark:border-red-600 dark:text-red-300">
+                                        <strong className="font-bold">Fehler!</strong>
+                                        <span className="block sm:inline"> {newsError}</span>
+                                    </div>
+                                )}
+                                {!newsLoading && !newsError && playerNews.length === 0 && (
+                                    <p className="text-gray-600 dark:text-gray-400 text-center py-4">Keine Nachrichten verfügbar.</p>
+                                )}
+                                {!newsLoading && !newsError && playerNews.length > 0 && (
+                                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                        <thead className="bg-gray-50 dark:bg-gray-700">
+                                            <tr>
+                                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Datum</th>
+                                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Zeit</th>
+                                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Titel</th>
+                                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Kategorie</th>
+                                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Zusammenfassung</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                            {playerNews.map((news, index) => (
+                                                <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                                        {new Date(news.date).toLocaleDateString('de-DE')}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                                        {news.time}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
+                                                        <a href={news.link} target="_blank" rel="noopener noreferrer" className="hover:text-blue-600 dark:hover:text-blue-400">
+                                                            {news.title}
+                                                        </a>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                                        {news.category}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                                                        {news.comprehension}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                )}
+                            </div>
+                        </div>
+                    </>
                 )}
             </main>
         </div>
