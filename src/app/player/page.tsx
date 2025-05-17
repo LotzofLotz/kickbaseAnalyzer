@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState, useEffect, useMemo } from 'react';
+import { Suspense, useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { formatCurrency } from '@/lib/kickbase-api';
 import { getPositionName, getStatusName, getTeamData } from '@/utils/player.utils';
@@ -751,6 +751,29 @@ function PlayerInfoContent() {
         return Array.from({ length: totalMatchdays }, (_, i) => i + 1);
     }, [totalMatchdays]);
 
+    // Funktion zum Ermitteln des Datums eines Spieltags
+    const getMatchdayDate = useCallback((matchday: number): Date | null => {
+        if (!matchday || matchday <= 0 || !clubMatches.length) return null;
+        
+        const match = clubMatches.find(m => m.matchday === matchday);
+        if (!match || !match.match_date) return null;
+        
+        return new Date(match.match_date);
+    }, [clubMatches]);
+
+    // Filtere die Nachrichten basierend auf dem ausgewählten Spieltag
+    const filteredPlayerNews = useMemo(() => {
+        if (selectedMatchday <= 0 || !playerNews.length) return playerNews;
+        
+        const matchdayDate = getMatchdayDate(selectedMatchday);
+        if (!matchdayDate) return playerNews;
+        
+        return playerNews.filter(news => {
+            const newsDate = new Date(news.date);
+            return newsDate <= matchdayDate;
+        });
+    }, [playerNews, selectedMatchday, getMatchdayDate]);
+
     const isLoadingOrError = statsLoading || matchesLoading || isLoading || statsError || matchesError || error;
 
     return (
@@ -990,27 +1013,35 @@ function PlayerInfoContent() {
                                             </tr>
                                         </thead>
                                         <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                                            {playerNews.map((news, index) => (
-                                                <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                                        {new Date(news.date).toLocaleDateString('de-DE')}
-                                                    </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                                        {news.time}
-                                                    </td>
-                                                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
-                                                        <a href={news.link} target="_blank" rel="noopener noreferrer" className="hover:text-blue-600 dark:hover:text-blue-400">
-                                                            {news.title}
-                                                        </a>
-                                                    </td>
-                                                    <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                                                        {news.comprehension}
-                                                    </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                                        {news.category}
+                                            {filteredPlayerNews.length > 0 ? (
+                                                filteredPlayerNews.map((news, index) => (
+                                                    <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                                            {new Date(news.date).toLocaleDateString('de-DE')}
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                                            {news.time}
+                                                        </td>
+                                                        <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
+                                                            <a href={news.link} target="_blank" rel="noopener noreferrer" className="hover:text-blue-600 dark:hover:text-blue-400">
+                                                                {news.title}
+                                                            </a>
+                                                        </td>
+                                                        <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                                                            {news.comprehension}
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                                            {news.category}
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            ) : (
+                                                <tr>
+                                                    <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                                                        Keine Nachrichten für den ausgewählten Zeitraum verfügbar.
                                                     </td>
                                                 </tr>
-                                            ))}
+                                            )}
                                         </tbody>
                                     </table>
                                 )}
