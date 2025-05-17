@@ -444,13 +444,21 @@ const RenderTableBodyRows: React.FC<RenderTableBodyRowsProps> = ({
             </tr>
 
             {/* Note */}
-             <tr className="bg-gray-50 dark:bg-gray-700/50"> {/* Note was on white, made it gray for consistency */}
+             <tr className="bg-gray-50 dark:bg-gray-700/50">
                 <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10 w-24">Note:</td>
-                {matchdaysToDisplay.map((matchday) => { const s = playerStats.find(stat => stat.matchday === matchday); const n = s?.liga_note; return <td key={`note-${matchday}`} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{n !== null && n !== undefined && !isNaN(Number(n)) ? Number(n).toFixed(1) : '-'}</td>; })}
+                {matchdaysToDisplay.map((matchday) => {
+                    const s = playerStats.find(stat => stat.matchday === matchday);
+                    const n = s?.liga_note;
+                    return (
+                        <td key={`note-${matchday}`} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">
+                            {n !== null && n !== undefined && !isNaN(Number(n)) ? Number(n).toFixed(1) : '-'}
+                        </td>
+                    );
+                })}
             </tr>
 
             {/* S11 */}
-            <tr> {/* S11 was on gray, made it white */}
+            <tr>
                 <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10 w-24">S11:</td>
                 {matchdaysToDisplay.map((matchday) => { 
                     const s = playerStats.find(stat => stat.matchday === matchday);
@@ -467,13 +475,13 @@ const RenderTableBodyRows: React.FC<RenderTableBodyRowsProps> = ({
             </tr>
 
             {/* Minuten */}
-            <tr className="bg-gray-50 dark:bg-gray-700/50"> {/* Minuten was on white, made it gray */}
+            <tr className="bg-gray-50 dark:bg-gray-700/50">
                 <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10 w-24">Min:</td>
                 {matchdaysToDisplay.map((matchday) => { const s = playerStats.find(stat => stat.matchday === matchday); return <td key={`min-${matchday}`} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{s ? s.minutes : (s === undefined ? '-' : '0')}</td>; })}
             </tr>
 
             {/* Status */}
-            <tr> {/* Status was on gray, made it white */}
+            <tr>
                 <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10 w-24">Status:</td>
                 {matchdaysToDisplay.map((matchday) => {
                     const s = playerStats.find(stat => stat.matchday === matchday);
@@ -977,8 +985,8 @@ function PlayerInfoContent() {
                                                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Datum</th>
                                                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Zeit</th>
                                                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Titel</th>
-                                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Kategorie</th>
                                                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Zusammenfassung</th>
+                                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Kategorie</th>
                                             </tr>
                                         </thead>
                                         <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -995,11 +1003,11 @@ function PlayerInfoContent() {
                                                             {news.title}
                                                         </a>
                                                     </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                                        {news.category}
-                                                    </td>
                                                     <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
                                                         {news.comprehension}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                                        {news.category}
                                                     </td>
                                                 </tr>
                                             ))}
