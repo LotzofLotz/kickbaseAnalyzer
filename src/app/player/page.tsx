@@ -166,103 +166,6 @@ const RenderTableBodyRows: React.FC<RenderTableBodyRowsProps> = ({
                 })}
             </tr>
 
-            {/* W/D/L-T */}
-            <tr>
-                <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10 w-24">W/D/L-T:</td>
-                {matchdaysToDisplay.map((matchday) => {
-                    const matchingMatch = clubMatches.find(match => match.matchday === matchday);
-                    if (!matchingMatch) return <td key={`wdl-${matchday}`} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">-</td>;
-                    
-                    const isHome = String(teamId) === String(matchingMatch.home_club_id);
-                    const homeProb = matchingMatch.home_probabilities / 100;
-                    const awayProb = matchingMatch.away_probabilities / 100;
-                    const drawProbValue = matchingMatch.draw_probabilities / 100;
-                    
-                    const winProbRaw = isHome ? 1 / homeProb : 1 / awayProb;
-                    const drawProbRaw = 1 / drawProbValue;
-                    const lossProbRaw = isHome ? 1 / awayProb : 1 / homeProb;
-                    
-                    const sumOfReciprocals = winProbRaw + drawProbRaw + lossProbRaw;
-                    
-                    const winProb = winProbRaw / sumOfReciprocals;
-                    const drawProbNorm = drawProbRaw / sumOfReciprocals;
-                    const lossProb = lossProbRaw / sumOfReciprocals;
-
-                    return (
-                        <td key={`wdl-${matchday}`} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">
-                            <div className="flex flex-col space-y-1">
-                                <span className="text-green-600 dark:text-green-400">W: {(winProb * 100).toFixed(0)}%</span>
-                                <span className="text-yellow-600 dark:text-yellow-400">D: {(drawProbNorm * 100).toFixed(0)}%</span>
-                                <span className="text-red-600 dark:text-red-400">L: {(lossProb * 100).toFixed(0)}%</span>
-                            </div>
-                        </td>
-                    );
-                })}
-            </tr>
-
-            {/* W/D/L-F */}
-            <tr>
-                <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10 w-24">W/D/L-F:</td>
-                {matchdaysToDisplay.map((matchday) => {
-                    const matchingMatch = clubMatches.find(match => match.matchday === matchday);
-                    if (!matchingMatch) return <td key={`wdlw-${matchday}`} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">-</td>;
-                    
-                    const isHome = String(teamId) === String(matchingMatch.home_club_id);
-                    const homeHeur = matchingMatch.home_heuristics / 100;
-                    const awayHeur = matchingMatch.away_heuristics / 100;
-                    const drawHeurValue = matchingMatch.draw_heuristics / 100;
-                    
-                    const winProbRaw = isHome ? 1 / homeHeur : 1 / awayHeur;
-                    const drawProbRaw = 1 / drawHeurValue;
-                    const lossProbRaw = isHome ? 1 / awayHeur : 1 / homeHeur;
-                    
-                    const sumOfReciprocals = winProbRaw + drawProbRaw + lossProbRaw;
-                    
-                    const winProb = winProbRaw / sumOfReciprocals;
-                    const drawProbNorm = drawProbRaw / sumOfReciprocals;
-                    const lossProb = lossProbRaw / sumOfReciprocals;
-
-                    return (
-                        <td key={`wdlw-${matchday}`} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">
-                            <div className="flex flex-col space-y-1">
-                                <span className="text-green-600 dark:text-green-400">W: {(winProb * 100).toFixed(0)}%</span>
-                                <span className="text-yellow-600 dark:text-yellow-400">D: {(drawProbNorm * 100).toFixed(0)}%</span>
-                                <span className="text-red-600 dark:text-red-400">L: {(lossProb * 100).toFixed(0)}%</span>
-                            </div>
-                        </td>
-                    );
-                })}
-            </tr>
-
-            {/* Matchup Score */}
-            <tr className="bg-gray-50 dark:bg-gray-700/50">
-                <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10 w-24">Matchup Score:</td>
-                {matchdaysToDisplay.map((matchday) => {
-                    const matchingMatch = clubMatches.find(match => match.matchday === matchday);
-                    if (!matchingMatch) return <td key={`matchup-${matchday}`} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">-</td>;
-                    
-                    const isHome = String(teamId) === String(matchingMatch.home_club_id);
-                    const homeHeur = matchingMatch.home_heuristics / 100;
-                    const awayHeur = matchingMatch.away_heuristics / 100;
-                    const drawHeurValue = matchingMatch.draw_heuristics / 100;
-                    
-                    const winProbRaw = isHome ? 1 / homeHeur : 1 / awayHeur;
-                    const drawProbRaw = 1 / drawHeurValue;
-                    const lossProbRaw = isHome ? 1 / awayHeur : 1 / homeHeur;
-                    
-                    const sumOfReciprocals = winProbRaw + drawProbRaw + lossProbRaw;
-                    
-                    const lossProb = lossProbRaw / sumOfReciprocals;
-                    const matchupScore = 1 - (lossProb * 100) / 100;
-
-                    return (
-                        <td key={`matchup-${matchday}`} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">
-                            {matchupScore.toFixed(2)}
-                        </td>
-                    );
-                })}
-            </tr>
-
             {/* Gegner */}
             <tr className="bg-gray-50 dark:bg-gray-700/50">
                 <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10 w-24">Gegner:</td>
@@ -485,32 +388,8 @@ const RenderTableBodyRows: React.FC<RenderTableBodyRowsProps> = ({
                 <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10 w-24">Status:</td>
                 {matchdaysToDisplay.map((matchday) => {
                     const s = playerStats.find(stat => stat.matchday === matchday);
-                    return (<td key={`stat-${matchday}`} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{s ? (s.status === 1 ? (<span className="text-red-600 dark:text-red-400" title={s.injury_text || 'Verletzt'}>⚕</span>) : s.status === 2 ? (<span className="text-yellow-600 dark:text-yellow-400" title="Fraglich">?</span>) : (<span className="text-green-600 dark:text-green-400" title="Fit">✓</span>)) : '-'}</td>);
+                    return (<td key={`stat-${matchday}`} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{s ? (s.status === 1 ? (<span className="text-red-600 dark:text-red-400" title={s.injury_text || 'Verletzt'}>🟥</span>) : s.status === 2 ? (<span className="text-yellow-600 dark:text-yellow-400" title="Fraglich">?</span>) : (<span className="text-green-600 dark:text-green-400" title="Fit">✓</span>)) : '-'}</td>);
                 })}
-            </tr>
-
-            {/* Tore */}
-            <tr className="bg-gray-50 dark:bg-gray-700/50">
-                <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10 w-24">Tore:</td>
-                {matchdaysToDisplay.map((matchday) => { const s = playerStats.find(stat => stat.matchday === matchday); return <td key={`goals-${matchday}`} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{s && s.goals > 0 ? s.goals : '-'}</td>; })}
-            </tr>
-
-            {/* Assists */}
-            <tr>
-                <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10 w-24">Assists:</td>
-                {matchdaysToDisplay.map((matchday) => { const s = playerStats.find(stat => stat.matchday === matchday); return <td key={`assist-${matchday}`} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{s && s.assist > 0 ? s.assist : '-'}</td>; })}
-            </tr>
-
-            {/* Gelb */}
-            <tr className="bg-gray-50 dark:bg-gray-700/50">
-                <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10 w-24">Gelb:</td>
-                {matchdaysToDisplay.map((matchday) => { const s = playerStats.find(stat => stat.matchday === matchday); return (<td key={`yellow-${matchday}`} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{s && s.yellow > 0 ? (<span className="inline-flex items-center justify-center w-4 h-4 bg-yellow-400 rounded-sm text-[10px] text-gray-900">{s.yellow}</span>) : '-'}</td>); })}
-            </tr>
-
-            {/* Rot */}
-            <tr>
-                <td className="px-3 py-2 text-left text-xs font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10 w-24">Rot:</td>
-                {matchdaysToDisplay.map((matchday) => { const s = playerStats.find(stat => stat.matchday === matchday); return (<td key={`red-${matchday}`} className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 w-16">{s && s.red > 0 ? (<span className="inline-flex items-center justify-center w-4 h-4 bg-red-600 rounded-sm text-[10px] text-white">{s.red}</span>) : '-'}</td>); })}
             </tr>
         </>
     );
