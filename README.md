@@ -1,6 +1,9 @@
 # kickbaseAnalyzer
 
-Ein Tool zur Vorhersage der Leistung von Bundesliga-Spielern mit historischen Daten und zur Bewertung relevanter Medien durch LLMs (Large Language Models).
+Ein Tool zur Vorhersage der Leistung von Bundesliga-Spielern mit historischen Daten und zur Bewertung relevanter Medien durch LLMs.
+
+![theate-readme](https://github.com/user-attachments/assets/fe4982de-005e-4421-8638-4abc05823e7a)
+
 
 ## Über das Projekt
 
